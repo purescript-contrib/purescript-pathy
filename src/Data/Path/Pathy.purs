@@ -62,7 +62,7 @@ module Data.Path.Pathy
   import Control.Alt((<|>))
   import qualified Data.String as S
   import Data.Foldable(foldr)
-  import Data.Array(filter, length, zipWith, range)
+  import Data.Array((!!), filter, length, zipWith, range)
   import Data.Tuple(Tuple(..), fst, snd)
   import Data.Either(Either(..), either)
   import Data.Maybe(Maybe(..), maybe, fromMaybe)
@@ -310,11 +310,11 @@ module Data.Path.Pathy
   unsafeCoerceType (FileIn   p f) = FileIn   (unsafeCoerceType p) f  
 
     -- | The "current directory", which can be used to define relatively-located resources.
-  currentDir :: Path Rel Dir Sandboxed 
+  currentDir :: forall s. Path Rel Dir s
   currentDir = Current
 
   -- | The root directory, which can be used to define absolutely-located resources.
-  rootDir :: Path Abs Dir Sandboxed 
+  rootDir :: forall s. Path Abs Dir s
   rootDir = Root
 
   -- | Renames a file path.
@@ -340,8 +340,8 @@ module Data.Path.Pathy
   canonicalize' :: forall a b s. Path a b s -> Tuple Boolean (Path a b s)
   canonicalize' (Current              ) = Tuple false Current 
   canonicalize' (Root                 ) = Tuple false Root
-  canonicalize' (ParentIn (FileIn p f)) = Tuple true p
-  canonicalize' (ParentIn (DirIn  p f)) = Tuple true p
+  canonicalize' (ParentIn (FileIn p f)) = Tuple true  (snd $ canonicalize' p)
+  canonicalize' (ParentIn (DirIn  p f)) = Tuple true  (snd $ canonicalize' p)
   canonicalize' (ParentIn (p         )) = (\(Tuple changed p') -> 
                                           let p'' = ParentIn p' in if changed then canonicalize' p'' else Tuple changed p'') $ canonicalize' p
   canonicalize' (FileIn   p f         ) = flip FileIn f <$> canonicalize' p
@@ -423,8 +423,9 @@ module Data.Path.Pathy
   parsePath rf af rd ad p = 
     let
       segs      = filter (\s -> S.length s > 0) (S.split "/" p)
-      filename  = let i = S.lastIndexOf "/" p in if i == -1 then "" else S.drop (i + 1) p
       lastIndex = length segs - 1
+      isAbs     = S.take 1 p == "/"
+      isFile    = maybe false (\last -> if last == "" then false else true) (segs !! lastIndex)
       tuples    = zipWith Tuple segs (range 0 lastIndex)
 
       folder :: forall a b s. Tuple String Number -> (Path a b s -> Path a b s) -> (Path a b s -> Path a b s)
@@ -438,11 +439,13 @@ module Data.Path.Pathy
         idx             -> if seg == "."  then f                           else
                            if seg == ".." then \p -> ParentIn (f p)        else
                            if seg == ""   then f                           else 
-                                               \p -> DirIn p (DirName seg)
-    in 
-      if p == "" then rd Current 
-      else if S.take 1 p == "/" then (if filename == "" then ad (foldr folder id tuples Root) else af (foldr folder id tuples Root))
-      else if filename   == ""  then rd (foldr folder id tuples Root) else rf (foldr folder id tuples Root)
+                                               \p -> DirIn (f p) (DirName seg)
+    in
+      if p == "" then rd Current                                       else
+      if     isAbs &&     isFile then af (foldr folder id tuples Root) else 
+      if     isAbs && not isFile then ad (foldr folder id tuples Root) else
+      if not isAbs &&     isFile then rf (foldr folder id tuples Root) else
+                                      rd (foldr folder id tuples Root)
 
   -- | Attempts to parse a relative file from a string.
   parseRelFile :: String -> Maybe (RelFile Unsandboxed)
@@ -468,6 +471,6 @@ module Data.Path.Pathy
     show (DirIn    p (DirName  f)) = "(" ++ show p ++ " </> dir "  ++ show f ++ ")"
 
   instance eqPath :: Eq (Path a b s) where
-    (==) p1 p2 = canonicalize p1 == canonicalize p2
+    (==) p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
 
     (/=) p1 p2 = not (p1 == p2)

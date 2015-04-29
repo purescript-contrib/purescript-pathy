@@ -1,6 +1,7 @@
 module Examples where 
   import Debug.Trace(Trace(), trace)
   import Control.Monad.Eff(Eff())
+  import Data.Maybe(Maybe(..))
   import Data.Maybe.Unsafe(fromJust)
   import Data.Path.Pathy
 
@@ -57,3 +58,7 @@ module Examples where
           (fromJust $ sandbox (rootDir </> dir "foo") (rootDir </> dir "foo" </> dir "bar")) "./bar/"
 
     test "depth - negative" (depth (parentDir' $ parentDir' $ parentDir' $ currentDir)) (-3)
+
+    test "parseRelDir - empty string" (parseRelDir "") (Just $ currentDir)
+
+    test "parseRelFile - image.png" (parseRelFile "image.png") (Just $ file "image.png")

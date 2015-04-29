@@ -8,6 +8,8 @@ A type-safe abstraction for platform-independent file system paths.
 fullPath = rootDir </> dir "baz" </> file "foo.png"
 ```
 
+See the [examples file](/examples/Examples.purs) for more.
+
 # Getting Started
 
 ## Installation
@@ -41,11 +43,12 @@ Many paths come from user-input or configuration data. Pathy can parse such stri
 Building path liberals is easy. You will typically build path literals from the following components:
 
  * `rootDir`    &mdash; The root directory of an absolute path.
- * `currentDir` &mdash; The current directory (AKA the "working directory"), useful for describing relative paths.
+ * `currentDir` &mdash; The current directory (AKA the "working directory"), useful for building relative paths.
  * `file`       &mdash; A file (in the current directory).
  * `dir`        &mdash; A directory (in the current directory).
- * `(</>)`      &mdash; Combines two paths into one, if the composition makes sense!
+ * `(</>)`      &mdash; Adds a relative path to the end of a (relative or absolute) path.
  * `(<.>)`      &mdash; Sets the extension of a file path.
+ * `(<..>)`     &mdash; Ascends one level in a directory, then descends into the specified relative path.
 
 For example:
 
@@ -85,9 +88,26 @@ Pathy also carries information on whether a path is a file or directory, and whe
 
 `parentDir'`
 
-`sandbox`
+### Sandboxing
 
+Pathy makes it easy to create relative paths, even paths that ascend into parent directories of relative paths.
+
+With this power comes danger: if you parse a user string, the user may be able to escape any arbitrary directory.
+
+Pathy solves this security problem by *disallowing* conversion from a `Path` to a `String` until the `Path` has been *sandboxed*.
+
+To sandbox a path, you just call `sandbox` and provide the sandbox directory, as well as the path to sandbox:
+
+```purescript
+sandbox (rootDir </> dir "foo") (rootDir </> dir "foo" </> dir "bar")
+```
+
+This returns a `Maybe`, which is either equal to `Nothing` if the tainted path escapes the sandbox, or `Just p`, where `p` is the tainted path, relative to the sandbox path.
+
+After you have sandboxed a foreign path, you may call `printPath` on it. There's no need to remember this rule because it's enforced at compile-time by phantom types!
+
+All the path literals you build by hand are automatically sandboxed, unless you call `parentDir'` on them.
 
 # API Docs
 
-[MODULES.md](MODULES.md)
+For complete documentation on all functions and types, see [MODULES.md](MODULES.md).

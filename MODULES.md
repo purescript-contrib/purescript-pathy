@@ -354,7 +354,7 @@ This function always unsandboxes the path.
 #### `currentDir`
 
 ``` purescript
-currentDir :: Path Rel Dir Sandboxed
+currentDir :: forall s. Path Rel Dir s
 ```
 
 The "current directory", which can be used to define relatively-located resources.
@@ -362,7 +362,7 @@ The "current directory", which can be used to define relatively-located resource
 #### `rootDir`
 
 ``` purescript
-rootDir :: Path Abs Dir Sandboxed
+rootDir :: forall s. Path Abs Dir s
 ```
 
 The root directory, which can be used to define absolutely-located resources.
