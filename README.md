@@ -47,7 +47,7 @@ Building path liberals is easy. You will typically build path literals from the 
  * `(</>)`      &mdash; Combines two paths into one, if the composition makes sense!
  * `(<.>)`      &mdash; Sets the extension of a file path.
 
- For example:
+For example:
 
 ```purescript
 let 
