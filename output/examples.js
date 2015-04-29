@@ -8,6 +8,11 @@ PS.Prelude = (function () {
     }
     ;
     
+    function showNumberImpl(n) {
+      return n.toString();
+    }
+    ;
+    
     function numAdd(n1) {
       return function(n2) {
         return n1 + n2;
@@ -157,6 +162,7 @@ PS.Prelude = (function () {
         return dict.zero;
     };
     var showString = new Show(showStringImpl);
+    var showNumber = new Show(showNumberImpl);
     var show = function (dict) {
         return dict.show;
     };
@@ -260,49 +266,12 @@ PS.Prelude = (function () {
         flip: flip, 
         semigroupoidArr: semigroupoidArr, 
         showString: showString, 
+        showNumber: showNumber, 
         semiringNumber: semiringNumber, 
         ringNumber: ringNumber, 
         eqString: eqString, 
         eqNumber: eqNumber, 
         semigroupString: semigroupString
-    };
-})();
-var PS = PS || {};
-PS.Data_Profunctor = (function () {
-    "use strict";
-    var Prelude = PS.Prelude;
-    
-    /**
-     *  | A `Profunctor` is a `Functor` from the pair category `(Type^op, Type)`
-     *  | to `Type`.
-     *  |
-     *  | In other words, a `Profunctor` is a type constructor of two type
-     *  | arguments, which is contravariant in its first argument and covariant
-     *  | in its second argument.
-     *  | 
-     *  | The `dimap` function can be used to map functions over both arguments
-     *  | simultaneously.
-     *  |
-     *  | A straightforward example of a profunctor is the function arrow `(->)`.
-     *  |
-     *  | Laws:
-     *  | 
-     *  | - Identity: `dimap id id = id`
-     *  | - Composition: `dimap f1 g1 <<< dimap f2 g2 = dimap (f1 >>> f2) (g1 <<< g2)`
-     */
-    var Profunctor = function (dimap) {
-        this.dimap = dimap;
-    };
-    var profunctorArr = new Profunctor(function (a2b) {
-        return function (c2d) {
-            return function (b2c) {
-                return Prelude[">>>"](Prelude.semigroupoidArr)(a2b)(Prelude[">>>"](Prelude.semigroupoidArr)(b2c)(c2d));
-            };
-        };
-    });
-    return {
-        Profunctor: Profunctor, 
-        profunctorArr: profunctorArr
     };
 })();
 var PS = PS || {};
@@ -474,30 +443,6 @@ PS.Data_Maybe = (function () {
     })();
     
     /**
-     *  | Takes a default value, a function, and a `Maybe` value. If the `Maybe`
-     *  | value is `Nothing` the default value is returned, otherwise the function
-     *  | is applied to the value inside the `Just` and the result is returned.
-     *  |
-     *  | ``` purescript
-     *  | maybe x f Nothing == x
-     *  | maybe x f (Just y) == f y
-     *  | ```
-     */
-    var maybe = function (_111) {
-        return function (_112) {
-            return function (_113) {
-                if (_113 instanceof Nothing) {
-                    return _111;
-                };
-                if (_113 instanceof Just) {
-                    return _112(_113.value0);
-                };
-                throw new Error("Failed pattern match");
-            };
-        };
-    };
-    
-    /**
      *  | The `Functor` instance allows functions to transform the contents of a
      *  | `Just` with the `<$>` operator:
      *  |
@@ -519,83 +464,10 @@ PS.Data_Maybe = (function () {
             return Nothing.value;
         };
     });
-    
-    /**
-     *  | The `Apply` instance allows functions contained within a `Just` to
-     *  | transform a value contained within a `Just` using the `(<*>)` operator:
-     *  |
-     *  | ``` purescript
-     *  | Just f <*> Just x == Just (f x)
-     *  | ```
-     *  |
-     *  | `Nothing` values are left untouched:
-     *  |
-     *  | ``` purescript
-     *  | Just f <*> Nothing == Nothing
-     *  | Nothing <*> Just x == Nothing
-     *  | ```
-     *  |
-     *  | Combining `Functor`'s `<$>` with `Apply`'s `<*>` can be used transform a
-     *  | pure function to take `Maybe`-typed arguments so `f :: a -> b -> c`
-     *  | becomes `f :: Maybe a -> Maybe b -> Maybe c`:
-     *  |
-     *  | ``` purescript
-     *  | f <$> Just x <*> Just y == Just (f x y)
-     *  | ```
-     *  |
-     *  | The `Nothing`-preserving behaviour of both operators means the result of
-     *  | an expression like the above but where any one of the values is `Nothing`
-     *  | means the whole result becomes `Nothing` also:
-     *  |
-     *  | ``` purescript
-     *  | f <$> Nothing <*> Just y == Nothing
-     *  | f <$> Just x <*> Nothing == Nothing
-     *  | f <$> Nothing <*> Nothing == Nothing
-     *  | ```
-     */
-    var applyMaybe = new Prelude.Apply(function (_116) {
-        return function (_117) {
-            if (_116 instanceof Just) {
-                return Prelude["<$>"](functorMaybe)(_116.value0)(_117);
-            };
-            if (_116 instanceof Nothing) {
-                return Nothing.value;
-            };
-            throw new Error("Failed pattern match");
-        };
-    }, function () {
-        return functorMaybe;
-    });
-    
-    /**
-     *  | The `Bind` instance allows sequencing of `Maybe` values and functions that
-     *  | return a `Maybe` by using the `>>=` operator:
-     *  |
-     *  | ``` purescript
-     *  | Just x >>= f = f x
-     *  | Nothing >>= f = Nothing
-     *  | ```
-     */
-    var bindMaybe = new Prelude.Bind(function (_120) {
-        return function (_121) {
-            if (_120 instanceof Just) {
-                return _121(_120.value0);
-            };
-            if (_120 instanceof Nothing) {
-                return Nothing.value;
-            };
-            throw new Error("Failed pattern match");
-        };
-    }, function () {
-        return applyMaybe;
-    });
     return {
         Nothing: Nothing, 
         Just: Just, 
-        maybe: maybe, 
-        functorMaybe: functorMaybe, 
-        applyMaybe: applyMaybe, 
-        bindMaybe: bindMaybe
+        functorMaybe: functorMaybe
     };
 })();
 var PS = PS || {};
@@ -680,63 +552,10 @@ PS.Data_Tuple = (function () {
             return new Tuple(_250.value0, _249(_250.value1));
         };
     });
-    
-    /**
-     *  | Returns the first component of a tuple.
-     */
-    var fst = function (_234) {
-        return _234.value0;
-    };
     return {
         Tuple: Tuple, 
         snd: snd, 
-        fst: fst, 
         functorTuple: functorTuple
-    };
-})();
-var PS = PS || {};
-PS.Data_Profunctor_Strong = (function () {
-    "use strict";
-    var Prelude = PS.Prelude;
-    var Data_Profunctor = PS.Data_Profunctor;
-    var Data_Tuple = PS.Data_Tuple;
-    
-    /**
-     *  | The `Strong` class extends `Profunctor` with combinators for working with
-     *  | product types.
-     *  |
-     *  | `first` and `first` lift values in a `Profunctor` to act on the first and 
-     *  | second components of a `Tuple`, respectively.
-     *  |
-     */
-    var Strong = function (__superclass_Data$dotProfunctor$dotProfunctor_0, first, second) {
-        this["__superclass_Data.Profunctor.Profunctor_0"] = __superclass_Data$dotProfunctor$dotProfunctor_0;
-        this.first = first;
-        this.second = second;
-    };
-    var strongArr = new Strong(function () {
-        return Data_Profunctor.profunctorArr;
-    }, function (_308) {
-        return function (_309) {
-            return new Data_Tuple.Tuple(_308(_309.value0), _309.value1);
-        };
-    }, Prelude["<$>"](Data_Tuple.functorTuple));
-    
-    /**
-     *  | The `Strong` class extends `Profunctor` with combinators for working with
-     *  | product types.
-     *  |
-     *  | `first` and `first` lift values in a `Profunctor` to act on the first and 
-     *  | second components of a `Tuple`, respectively.
-     *  |
-     */
-    var first = function (dict) {
-        return dict.first;
-    };
-    return {
-        Strong: Strong, 
-        first: first, 
-        strongArr: strongArr
     };
 })();
 var PS = PS || {};
@@ -797,12 +616,12 @@ PS.Data_Path_Pathy = (function () {
     var Data_String = PS.Data_String;
     var Data_Array = PS.Data_Array;
     var Data_Tuple = PS.Data_Tuple;
-    var Data_Maybe = PS.Data_Maybe;
     var Data_Either = PS.Data_Either;
-    var Data_Profunctor_Strong = PS.Data_Profunctor_Strong;
     var Data_Foldable = PS.Data_Foldable;
     var Control_Alt = PS.Control_Alt;
+    var Data_Maybe = PS.Data_Maybe;
     var Data_List = PS.Data_List;
+    var Data_Profunctor_Strong = PS.Data_Profunctor_Strong;
     
     /**
      *  | A newtype around a file name.
@@ -980,46 +799,46 @@ PS.Data_Path_Pathy = (function () {
     /**
      *  | Given a directory path, appends either a file or directory to the path.
      */
-    var $less$div$greater = function (_625) {
-        return function (_626) {
-            if (_625 instanceof Current && _626 instanceof Current) {
+    var $less$div$greater = function (_622) {
+        return function (_623) {
+            if (_622 instanceof Current && _623 instanceof Current) {
                 return Current.value;
             };
-            if (_625 instanceof Root && _626 instanceof Current) {
+            if (_622 instanceof Root && _623 instanceof Current) {
                 return Root.value;
             };
-            if (_625 instanceof ParentIn && _626 instanceof Current) {
-                return new ParentIn($less$div$greater(_625.value0)(Current.value));
+            if (_622 instanceof ParentIn && _623 instanceof Current) {
+                return new ParentIn($less$div$greater(_622.value0)(Current.value));
             };
-            if (_625 instanceof FileIn && _626 instanceof Current) {
-                return new FileIn($less$div$greater(_625.value0)(Current.value), _625.value1);
+            if (_622 instanceof FileIn && _623 instanceof Current) {
+                return new FileIn($less$div$greater(_622.value0)(Current.value), _622.value1);
             };
-            if (_625 instanceof DirIn && _626 instanceof Current) {
-                return new DirIn($less$div$greater(_625.value0)(Current.value), _625.value1);
+            if (_622 instanceof DirIn && _623 instanceof Current) {
+                return new DirIn($less$div$greater(_622.value0)(Current.value), _622.value1);
             };
-            if (_625 instanceof Current && _626 instanceof Root) {
+            if (_622 instanceof Current && _623 instanceof Root) {
                 return Current.value;
             };
-            if (_625 instanceof Root && _626 instanceof Root) {
+            if (_622 instanceof Root && _623 instanceof Root) {
                 return Root.value;
             };
-            if (_625 instanceof ParentIn && _626 instanceof Root) {
-                return new ParentIn($less$div$greater(_625.value0)(Current.value));
+            if (_622 instanceof ParentIn && _623 instanceof Root) {
+                return new ParentIn($less$div$greater(_622.value0)(Current.value));
             };
-            if (_625 instanceof FileIn && _626 instanceof Root) {
-                return new FileIn($less$div$greater(_625.value0)(Current.value), _625.value1);
+            if (_622 instanceof FileIn && _623 instanceof Root) {
+                return new FileIn($less$div$greater(_622.value0)(Current.value), _622.value1);
             };
-            if (_625 instanceof DirIn && _626 instanceof Root) {
-                return new DirIn($less$div$greater(_625.value0)(Current.value), _625.value1);
+            if (_622 instanceof DirIn && _623 instanceof Root) {
+                return new DirIn($less$div$greater(_622.value0)(Current.value), _622.value1);
             };
-            if (_626 instanceof ParentIn) {
-                return new ParentIn($less$div$greater(_625)(_626.value0));
+            if (_623 instanceof ParentIn) {
+                return new ParentIn($less$div$greater(_622)(_623.value0));
             };
-            if (_626 instanceof FileIn) {
-                return new FileIn($less$div$greater(_625)(_626.value0), _626.value1);
+            if (_623 instanceof FileIn) {
+                return new FileIn($less$div$greater(_622)(_623.value0), _623.value1);
             };
-            if (_626 instanceof DirIn) {
-                return new DirIn($less$div$greater(_625)(_626.value0), _626.value1);
+            if (_623 instanceof DirIn) {
+                return new DirIn($less$div$greater(_622)(_623.value0), _623.value1);
             };
             throw new Error("Failed pattern match");
         };
@@ -1028,68 +847,86 @@ PS.Data_Path_Pathy = (function () {
     /**
      *  | Unsandboxes any path (whether sandboxed or not).
      */
-    var unsandbox = function (_629) {
-        if (_629 instanceof Current) {
+    var unsandbox = function (_631) {
+        if (_631 instanceof Current) {
             return Current.value;
         };
-        if (_629 instanceof Root) {
+        if (_631 instanceof Root) {
             return Root.value;
         };
-        if (_629 instanceof ParentIn) {
-            return new ParentIn(unsandbox(_629.value0));
+        if (_631 instanceof ParentIn) {
+            return new ParentIn(unsandbox(_631.value0));
         };
-        if (_629 instanceof DirIn) {
-            return new DirIn(unsandbox(_629.value0), _629.value1);
+        if (_631 instanceof DirIn) {
+            return new DirIn(unsandbox(_631.value0), _631.value1);
         };
-        if (_629 instanceof FileIn) {
-            return new FileIn(unsandbox(_629.value0), _629.value1);
+        if (_631 instanceof FileIn) {
+            return new FileIn(unsandbox(_631.value0), _631.value1);
         };
         throw new Error("Failed pattern match");
     };
     var unsafePrintPath$prime = function (r) {
         return function (p) {
-            var go = function (_634) {
-                if (_634 instanceof Current) {
+            var go = function (_636) {
+                if (_636 instanceof Current) {
                     return "./";
                 };
-                if (_634 instanceof Root) {
+                if (_636 instanceof Root) {
                     return "/";
                 };
-                if (_634 instanceof ParentIn) {
-                    return go(_634.value0) + "../";
+                if (_636 instanceof ParentIn) {
+                    return go(_636.value0) + "../";
                 };
-                if (_634 instanceof DirIn && _634.value0 instanceof FileIn) {
-                    return go(_634.value0) + ("/" + (_634.value1 + "/"));
+                if (_636 instanceof DirIn && _636.value0 instanceof FileIn) {
+                    return go(_636.value0) + ("/" + (_636.value1 + "/"));
                 };
-                if (_634 instanceof DirIn) {
-                    return go(_634.value0) + (_634.value1 + "/");
+                if (_636 instanceof DirIn) {
+                    return go(_636.value0) + (_636.value1 + "/");
                 };
-                if (_634 instanceof FileIn && _634.value0 instanceof FileIn) {
-                    return go(_634.value0) + ("/" + _634.value1);
+                if (_636 instanceof FileIn && _636.value0 instanceof FileIn) {
+                    return go(_636.value0) + ("/" + _636.value1);
                 };
-                if (_634 instanceof FileIn) {
-                    return go(_634.value0) + _634.value1;
+                if (_636 instanceof FileIn) {
+                    return go(_636.value0) + _636.value1;
                 };
                 throw new Error("Failed pattern match");
             };
             return go(p);
         };
     };
-    var showPath = new Prelude.Show(function (_638) {
-        if (_638 instanceof Current) {
+    var unsafeCoerceType = function (_632) {
+        if (_632 instanceof Current) {
+            return Current.value;
+        };
+        if (_632 instanceof Root) {
+            return Root.value;
+        };
+        if (_632 instanceof ParentIn) {
+            return new ParentIn(unsafeCoerceType(_632.value0));
+        };
+        if (_632 instanceof DirIn) {
+            return new DirIn(unsafeCoerceType(_632.value0), _632.value1);
+        };
+        if (_632 instanceof FileIn) {
+            return new FileIn(unsafeCoerceType(_632.value0), _632.value1);
+        };
+        throw new Error("Failed pattern match");
+    };
+    var showPath = new Prelude.Show(function (_640) {
+        if (_640 instanceof Current) {
             return "currentDir";
         };
-        if (_638 instanceof Root) {
+        if (_640 instanceof Root) {
             return "rootDir";
         };
-        if (_638 instanceof ParentIn) {
-            return "(parentDir' " + (Prelude.show(showPath)(_638.value0) + ")");
+        if (_640 instanceof ParentIn) {
+            return "(parentDir' " + (Prelude.show(showPath)(_640.value0) + ")");
         };
-        if (_638 instanceof FileIn) {
-            return Prelude.show(showPath)(_638.value0) + ("(file " + (_638.value1 + ")"));
+        if (_640 instanceof FileIn) {
+            return "(" + (Prelude.show(showPath)(_640.value0) + (" </> file " + (Prelude.show(Prelude.showString)(_640.value1) + ")")));
         };
-        if (_638 instanceof DirIn) {
-            return Prelude.show(showPath)(_638.value0) + ("(dir " + (_638.value1 + ")"));
+        if (_640 instanceof DirIn) {
+            return "(" + (Prelude.show(showPath)(_640.value0) + (" </> dir " + (Prelude.show(Prelude.showString)(_640.value1) + ")")));
         };
         throw new Error("Failed pattern match");
     });
@@ -1097,8 +934,8 @@ PS.Data_Path_Pathy = (function () {
     /**
      *  | Given an escaper and a segment to encode, returns the encoded segment.
      */
-    var runEscaper = function (_619) {
-        return _619;
+    var runEscaper = function (_616) {
+        return _616;
     };
     
     /**
@@ -1110,13 +947,30 @@ PS.Data_Path_Pathy = (function () {
      *  | Renames a file path.
      */
     var renameFile = function (f) {
-        var go = function (_632) {
-            if (_632 instanceof FileIn) {
-                return new FileIn(_632.value0, f(_632.value1));
+        var go = function (_634) {
+            if (_634 instanceof FileIn) {
+                return new FileIn(_634.value0, f(_634.value1));
             };
-            return _632;
+            return _634;
         };
         return go;
+    };
+    
+    /**
+     *  | Creates a path that points to the parent directory of the specified path.
+     *  | This function always unsandboxes the path.
+     */
+    var parentDir$prime = Prelude["<<<"](Prelude.semigroupoidArr)(ParentIn.create)(Prelude["<<<"](Prelude.semigroupoidArr)(unsafeCoerceType)(unsandbox));
+    
+    /**
+     *  | Ascends into the parent of the specified directory, then descends into 
+     *  | the specified path. The result is always unsandboxed because it may escape
+     *  | its previous sandbox.
+     */
+    var $less$dot$dot$greater = function (d) {
+        return function (p) {
+            return $less$div$greater(parentDir$prime(d))(unsandbox(p));
+        };
     };
     
     /**
@@ -1132,16 +986,16 @@ PS.Data_Path_Pathy = (function () {
      *  | converts "." into "$dot".
      */
     var posixEscaper = Escaper(Prelude[">>>"](Prelude.semigroupoidArr)(runEscaper(nonEscaper))(function (s) {
-        var _724 = s === "..";
-        if (_724) {
+        var _715 = s === "..";
+        if (_715) {
             return "$dot$dot";
         };
-        if (!_724) {
-            var _725 = s === ".";
-            if (_725) {
+        if (!_715) {
+            var _716 = s === ".";
+            if (_716) {
                 return "$dot";
             };
-            if (!_725) {
+            if (!_716) {
                 return s;
             };
             throw new Error("Failed pattern match");
@@ -1149,132 +1003,6 @@ PS.Data_Path_Pathy = (function () {
         throw new Error("Failed pattern match");
     }));
     var unsafePrintPath = unsafePrintPath$prime(posixEscaper);
-    
-    /**
-     *  | Determines if this path is absolutely located.
-     */
-    var isAbsolute = function (__copy__627) {
-        var _627 = __copy__627;
-        tco: while (true) {
-            if (_627 instanceof Current) {
-                return false;
-            };
-            if (_627 instanceof Root) {
-                return true;
-            };
-            if (_627 instanceof ParentIn) {
-                var __tco__627 = _627.value0;
-                _627 = __tco__627;
-                continue tco;
-            };
-            if (_627 instanceof FileIn) {
-                var __tco__627 = _627.value0;
-                _627 = __tco__627;
-                continue tco;
-            };
-            if (_627 instanceof DirIn) {
-                var __tco__627 = _627.value0;
-                _627 = __tco__627;
-                continue tco;
-            };
-            throw new Error("Failed pattern match");
-        };
-    };
-    
-    /**
-     *  | Peels off the last directory and the terminal file or directory name 
-     *  | from the path. Returns `Nothing` if there is no such pair (for example, 
-     *  | if the last path segment is root directory, current directory, or parent 
-     *  | directory).
-     */
-    var peel = function (_628) {
-        if (_628 instanceof Current) {
-            return Data_Maybe.Nothing.value;
-        };
-        if (_628 instanceof Root) {
-            return Data_Maybe.Nothing.value;
-        };
-        if (_628 instanceof ParentIn) {
-            return Prelude[">>="](Data_Maybe.bindMaybe)(peel(_628.value0))(Prelude[">>>"](Prelude.semigroupoidArr)(Data_Tuple.fst)(peel));
-        };
-        if (_628 instanceof DirIn) {
-            var d$prime = new Data_Either.Left(_628.value1);
-            return Data_Maybe.Just.create(Data_Maybe.maybe((function () {
-                var _734 = isAbsolute(_628.value0);
-                if (_734) {
-                    return new Data_Tuple.Tuple(Root.value, d$prime);
-                };
-                if (!_734) {
-                    return new Data_Tuple.Tuple(Current.value, d$prime);
-                };
-                throw new Error("Failed pattern match");
-            })())(function (_614) {
-                return new Data_Tuple.Tuple(Data_Either.either(DirIn.create(_614.value0))(FileIn.create(_614.value0))(_614.value1), d$prime);
-            })(peel(_628.value0)));
-        };
-        if (_628 instanceof FileIn) {
-            var f$prime = new Data_Either.Right(_628.value1);
-            return Data_Maybe.Just.create(Data_Maybe.maybe((function () {
-                var _740 = isAbsolute(_628.value0);
-                if (_740) {
-                    return new Data_Tuple.Tuple(Root.value, f$prime);
-                };
-                if (!_740) {
-                    return new Data_Tuple.Tuple(Current.value, f$prime);
-                };
-                throw new Error("Failed pattern match");
-            })())(function (_615) {
-                return new Data_Tuple.Tuple(Data_Either.either(DirIn.create(_615.value0))(FileIn.create(_615.value0))(_615.value1), f$prime);
-            })(peel(_628.value0)));
-        };
-        throw new Error("Failed pattern match");
-    };
-    
-    /**
-     *  | Extracts out the parent directory of the specified path. Will use the 
-     *  | parent path segment (..) if strictly necessary and therefore can escape 
-     *  | a sandboxed path.
-     */
-    var parentDir$prime = function (_630) {
-        if (_630 instanceof Current) {
-            return new ParentIn(Current.value);
-        };
-        if (_630 instanceof Root) {
-            return new ParentIn(Root.value);
-        };
-        if (_630 instanceof ParentIn) {
-            return new ParentIn(parentDir$prime(_630.value0));
-        };
-        if (_630 instanceof FileIn) {
-            return Data_Maybe.maybe((function () {
-                var _748 = isAbsolute(_630.value0);
-                if (_748) {
-                    return Root.value;
-                };
-                if (!_748) {
-                    return Current.value;
-                };
-                throw new Error("Failed pattern match");
-            })())(function (_616) {
-                return Data_Either.either(DirIn.create(_616.value0))(FileIn.create(_616.value0))(_616.value1);
-            })(Prelude["<$>"](Data_Maybe.functorMaybe)(Data_Profunctor_Strong.first(Data_Profunctor_Strong.strongArr)(unsandbox))(peel(_630.value0)));
-        };
-        if (_630 instanceof DirIn) {
-            return Data_Maybe.maybe((function () {
-                var _754 = isAbsolute(_630.value0);
-                if (_754) {
-                    return Root.value;
-                };
-                if (!_754) {
-                    return Current.value;
-                };
-                throw new Error("Failed pattern match");
-            })())(function (_617) {
-                return Data_Either.either(DirIn.create(_617.value0))(FileIn.create(_617.value0))(_617.value1);
-            })(Prelude["<$>"](Data_Maybe.functorMaybe)(Data_Profunctor_Strong.first(Data_Profunctor_Strong.strongArr)(unsandbox))(peel(_630.value0)));
-        };
-        throw new Error("Failed pattern match");
-    };
     
     /**
      *  | Determines if two paths have the exact same representation. Note that 
@@ -1304,14 +1032,14 @@ PS.Data_Path_Pathy = (function () {
     /**
      *  | Retrieves the extension of a file name.
      */
-    var extension = function (_621) {
-        var idx = Data_String.lastIndexOf(".")(_621);
-        var _761 = idx === -1;
-        if (_761) {
+    var extension = function (_618) {
+        var idx = Data_String.lastIndexOf(".")(_618);
+        var _718 = idx === -1;
+        if (_718) {
             return "";
         };
-        if (!_761) {
-            return Data_String.drop(idx + 1)(_621);
+        if (!_718) {
+            return Data_String.drop(idx + 1)(_618);
         };
         throw new Error("Failed pattern match");
     };
@@ -1319,14 +1047,14 @@ PS.Data_Path_Pathy = (function () {
     /**
      *  | Drops the extension on a file name.
      */
-    var dropExtension = function (_622) {
-        var idx = Data_String.lastIndexOf(".")(_622);
-        var _763 = idx === -1;
-        if (_763) {
-            return _622;
+    var dropExtension = function (_619) {
+        var idx = Data_String.lastIndexOf(".")(_619);
+        var _720 = idx === -1;
+        if (_720) {
+            return _619;
         };
-        if (!_763) {
-            return FileName(Data_String.take(idx)(_622));
+        if (!_720) {
+            return FileName(Data_String.take(idx)(_619));
         };
         throw new Error("Failed pattern match");
     };
@@ -1346,21 +1074,49 @@ PS.Data_Path_Pathy = (function () {
     };
     
     /**
+     *  | Returns the depth of the path. This may be negative in some cases, e.g.
+     *  | `./../../../` has depth `-3`.
+     */
+    var depth = function (_630) {
+        if (_630 instanceof Current) {
+            return 0;
+        };
+        if (_630 instanceof Root) {
+            return 0;
+        };
+        if (_630 instanceof ParentIn) {
+            return depth(_630.value0) - 1;
+        };
+        if (_630 instanceof FileIn) {
+            return depth(_630.value0) + 1;
+        };
+        if (_630 instanceof DirIn) {
+            return depth(_630.value0) + 1;
+        };
+        throw new Error("Failed pattern match");
+    };
+    
+    /**
+     *  | The "current directory", which can be used to define relatively-located resources.
+     */
+    var currentDir = Current.value;
+    
+    /**
      *  | Changes the extension on a file name.
      */
-    var changeExtension = function (_623) {
-        return function (_624) {
-            var ext = _623(extension(_624));
+    var changeExtension = function (_620) {
+        return function (_621) {
+            var ext = _620(extension(_621));
             return (function (_613) {
-                var _767 = ext === "";
-                if (_767) {
+                var _730 = ext === "";
+                if (_730) {
                     return _613;
                 };
-                if (!_767) {
+                if (!_730) {
                     return FileName(_613 + ("." + ext));
                 };
                 throw new Error("Failed pattern match");
-            })(dropExtension(_624));
+            })(dropExtension(_621));
         };
     };
     
@@ -1380,36 +1136,69 @@ PS.Data_Path_Pathy = (function () {
     /**
      *  | Canonicalizes a path and returns information on whether or not it actually changed.
      */
-    var canonicalize$prime = function (_631) {
-        if (_631 instanceof Current) {
+    var canonicalize$prime = function (_633) {
+        if (_633 instanceof Current) {
             return new Data_Tuple.Tuple(false, Current.value);
         };
-        if (_631 instanceof Root) {
+        if (_633 instanceof Root) {
             return new Data_Tuple.Tuple(false, Root.value);
         };
-        if (_631 instanceof ParentIn && _631.value0 instanceof FileIn) {
-            return new Data_Tuple.Tuple(true, _631.value0.value0);
+        if (_633 instanceof ParentIn && _633.value0 instanceof FileIn) {
+            return new Data_Tuple.Tuple(true, _633.value0.value0);
         };
-        if (_631 instanceof ParentIn && _631.value0 instanceof DirIn) {
-            return new Data_Tuple.Tuple(true, _631.value0.value0);
+        if (_633 instanceof ParentIn && _633.value0 instanceof DirIn) {
+            return new Data_Tuple.Tuple(true, _633.value0.value0);
         };
-        if (_631 instanceof ParentIn) {
-            return (function (_618) {
-                var p$prime$prime = new ParentIn(_618.value1);
-                if (_618.value0) {
+        if (_633 instanceof ParentIn) {
+            return (function (_615) {
+                var p$prime$prime = new ParentIn(_615.value1);
+                if (_615.value0) {
                     return canonicalize$prime(p$prime$prime);
                 };
-                if (!_618.value0) {
-                    return new Data_Tuple.Tuple(_618.value0, p$prime$prime);
+                if (!_615.value0) {
+                    return new Data_Tuple.Tuple(_615.value0, p$prime$prime);
                 };
                 throw new Error("Failed pattern match");
-            })(canonicalize$prime(_631.value0));
+            })(canonicalize$prime(_633.value0));
         };
-        if (_631 instanceof FileIn) {
-            return Prelude["<$>"](Data_Tuple.functorTuple)(Prelude.flip(FileIn.create)(_631.value1))(canonicalize$prime(_631.value0));
+        if (_633 instanceof FileIn) {
+            return Prelude["<$>"](Data_Tuple.functorTuple)(Prelude.flip(FileIn.create)(_633.value1))(canonicalize$prime(_633.value0));
         };
-        if (_631 instanceof DirIn) {
-            return Prelude["<$>"](Data_Tuple.functorTuple)(Prelude.flip(DirIn.create)(_631.value1))(canonicalize$prime(_631.value0));
+        if (_633 instanceof DirIn) {
+            return Prelude["<$>"](Data_Tuple.functorTuple)(Prelude.flip(DirIn.create)(_633.value1))(canonicalize$prime(_633.value0));
+        };
+        throw new Error("Failed pattern match");
+    };
+    
+    /**
+     *  | Peels off the last directory and the terminal file or directory name 
+     *  | from the path. Returns `Nothing` if there is no such pair (for example, 
+     *  | if the last path segment is root directory, current directory, or parent 
+     *  | directory).
+     */
+    var peel = function (_625) {
+        if (_625 instanceof Current) {
+            return Data_Maybe.Nothing.value;
+        };
+        if (_625 instanceof Root) {
+            return Data_Maybe.Nothing.value;
+        };
+        if (_625 instanceof ParentIn) {
+            return (function (_614) {
+                if (_614.value0) {
+                    return peel(_614.value1);
+                };
+                if (!_614.value0) {
+                    return Data_Maybe.Nothing.value;
+                };
+                throw new Error("Failed pattern match");
+            })(canonicalize$prime(_625));
+        };
+        if (_625 instanceof DirIn) {
+            return Data_Maybe.Just.create(new Data_Tuple.Tuple(unsafeCoerceType(_625.value0), new Data_Either.Left(_625.value1)));
+        };
+        if (_625 instanceof FileIn) {
+            return Data_Maybe.Just.create(new Data_Tuple.Tuple(unsafeCoerceType(_625.value0), new Data_Either.Right(_625.value1)));
         };
         throw new Error("Failed pattern match");
     };
@@ -1432,24 +1221,24 @@ PS.Data_Path_Pathy = (function () {
         return function (p2) {
             var relativeTo$prime = function (p1_1) {
                 return function (p2_1) {
-                    var _784 = identicalPath(p1_1)(p2_1);
-                    if (_784) {
+                    var _757 = identicalPath(p1_1)(p2_1);
+                    if (_757) {
                         return new Data_Maybe.Just(Current.value);
                     };
-                    if (!_784) {
-                        var _785 = peel(p1_1);
-                        if (_785 instanceof Data_Maybe.Nothing) {
-                            var _786 = new Data_Tuple.Tuple(p1_1, p2_1);
-                            if (_786.value0 instanceof Root && _786.value1 instanceof Root) {
+                    if (!_757) {
+                        var _758 = peel(p1_1);
+                        if (_758 instanceof Data_Maybe.Nothing) {
+                            var _759 = new Data_Tuple.Tuple(p1_1, p2_1);
+                            if (_759.value0 instanceof Root && _759.value1 instanceof Root) {
                                 return new Data_Maybe.Just(Current.value);
                             };
-                            if (_786.value0 instanceof Current && _786.value1 instanceof Current) {
+                            if (_759.value0 instanceof Current && _759.value1 instanceof Current) {
                                 return new Data_Maybe.Just(Current.value);
                             };
                             return Data_Maybe.Nothing.value;
                         };
-                        if (_785 instanceof Data_Maybe.Just) {
-                            return Prelude["<$>"](Data_Maybe.functorMaybe)(Prelude.flip($less$div$greater)(Data_Either.either(DirIn.create(Current.value))(FileIn.create(Current.value))(_785.value0.value1)))(relativeTo$prime(_785.value0.value0)(p2_1));
+                        if (_758 instanceof Data_Maybe.Just) {
+                            return Prelude["<$>"](Data_Maybe.functorMaybe)(Prelude.flip($less$div$greater)(Data_Either.either(DirIn.create(Current.value))(FileIn.create(Current.value))(_758.value0.value1)))(relativeTo$prime(_758.value0.value0)(p2_1));
                         };
                         throw new Error("Failed pattern match");
                     };
@@ -1488,7 +1277,6 @@ PS.Data_Path_Pathy = (function () {
         posixEscaper: posixEscaper, 
         peel: peel, 
         "parentDir'": parentDir$prime, 
-        isAbsolute: isAbsolute, 
         identicalPath: identicalPath, 
         "file'": file$prime, 
         file: file, 
@@ -1496,8 +1284,11 @@ PS.Data_Path_Pathy = (function () {
         dropExtension: dropExtension, 
         "dir'": dir$prime, 
         dir: dir, 
+        depth: depth, 
+        currentDir: currentDir, 
         changeExtension: changeExtension, 
         canonicalize: canonicalize, 
+        "<..>": $less$dot$dot$greater, 
         "<.>": $less$dot$greater, 
         "</>": $less$div$greater, 
         showPath: showPath
@@ -1514,15 +1305,15 @@ PS.Examples = (function () {
     var test = function (__dict_Show_520) {
         return function (__dict_Eq_521) {
             return function (name) {
-                return function (expected) {
-                    return function (actual) {
+                return function (actual) {
+                    return function (expected) {
                         return function __do() {
                             Debug_Trace.trace("Test: " + name)();
-                            var _794 = Prelude["=="](__dict_Eq_521)(expected)(actual);
-                            if (_794) {
+                            var _767 = Prelude["=="](__dict_Eq_521)(expected)(actual);
+                            if (_767) {
                                 return Debug_Trace.trace("Passed: " + Prelude.show(__dict_Show_520)(expected))();
                             };
-                            if (!_794) {
+                            if (!_767) {
                                 return Debug_Trace.trace("Failed: Expected " + (Prelude.show(__dict_Show_520)(expected) + (" but found " + Prelude.show(__dict_Show_520)(actual))))();
                             };
                             throw new Error("Failed pattern match");
@@ -1545,10 +1336,17 @@ PS.Examples = (function () {
         test$prime("(</>) - file with two parents")(Data_Path_Pathy["</>"](Data_Path_Pathy["</>"](Data_Path_Pathy.dir("foo"))(Data_Path_Pathy.dir("bar")))(Data_Path_Pathy.file("image.png")))("./foo/bar/image.png")();
         test$prime("(<.>) - file without extension")(Data_Path_Pathy["<.>"](Data_Path_Pathy.file("image"))("png"))("./image.png")();
         test$prime("(<.>) - file with extension")(Data_Path_Pathy["<.>"](Data_Path_Pathy.file("image.jpg"))("png"))("./image.png")();
+        test$prime("printPath - ./../")(Data_Path_Pathy["parentDir'"](Data_Path_Pathy.currentDir))("./../")();
+        test$prime("(</>) - ./../foo/")(Data_Path_Pathy["</>"](Data_Path_Pathy["parentDir'"](Data_Path_Pathy.currentDir))(Data_Path_Pathy.unsandbox(Data_Path_Pathy.dir("foo"))))("./../foo/")();
+        test$prime("parentDir' - ./../foo/../")(Data_Path_Pathy["</>"](Data_Path_Pathy["</>"](Data_Path_Pathy["parentDir'"](Data_Path_Pathy.currentDir))(Data_Path_Pathy.unsandbox(Data_Path_Pathy.dir("foo"))))(Data_Path_Pathy["parentDir'"](Data_Path_Pathy.currentDir)))("./../foo/../")();
+        test$prime("(<..>) - ./../")(Data_Path_Pathy["<..>"](Data_Path_Pathy.currentDir)(Data_Path_Pathy.currentDir))("./../")();
+        test$prime("(<..>) - ./../foo/")(Data_Path_Pathy["<..>"](Data_Path_Pathy.currentDir)(Data_Path_Pathy.dir("foo")))("./../foo/")();
+        test$prime("(<..>) - ./../foo/../")(Data_Path_Pathy["<..>"](Data_Path_Pathy["<..>"](Data_Path_Pathy.currentDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy.currentDir))("./../foo/../")();
         test$prime("canonicalize - 1 down, 1 up")(Data_Path_Pathy.canonicalize(Data_Path_Pathy["parentDir'"](Data_Path_Pathy.dir("foo"))))("./")();
         test$prime("canonicalize - 2 down, 2 up")(Data_Path_Pathy.canonicalize(Data_Path_Pathy["parentDir'"](Data_Path_Pathy["parentDir'"](Data_Path_Pathy["</>"](Data_Path_Pathy.dir("foo"))(Data_Path_Pathy.dir("bar"))))))("./")();
         test$prime("renameFile - single level deep")(Data_Path_Pathy.renameFile(Data_Path_Pathy.dropExtension)(Data_Path_Pathy.file("image.png")))("./image")();
-        return test$prime("sandbox - sandbox absolute dir to one level higher")(Data_Maybe_Unsafe.fromJust(Data_Path_Pathy.sandbox(Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy["</>"](Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy.dir("bar")))))("./bar/")();
+        test$prime("sandbox - sandbox absolute dir to one level higher")(Data_Maybe_Unsafe.fromJust(Data_Path_Pathy.sandbox(Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy["</>"](Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy.dir("bar")))))("./bar/")();
+        return test(Prelude.showNumber)(Prelude.eqNumber)("depth - negative")(Data_Path_Pathy.depth(Data_Path_Pathy["parentDir'"](Data_Path_Pathy["parentDir'"](Data_Path_Pathy["parentDir'"](Data_Path_Pathy.currentDir)))))(-3)();
     };
     return {
         main: main, 

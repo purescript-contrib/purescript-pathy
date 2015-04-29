@@ -201,19 +201,10 @@ changeExtension :: forall a s. (String -> String) -> FileName -> FileName
 
 Changes the extension on a file name.
 
-#### `dirName`
-
-``` purescript
-dirName :: forall a s. Path a Dir s -> Maybe DirName
-```
-
-Retrieves the name of a directory path. Not all paths have such a name, 
-for example, the root or current directory.
-
 #### `dir`
 
 ``` purescript
-dir :: String -> Path Rel Dir Sandboxed
+dir :: forall s. String -> Path Rel Dir s
 ```
 
 Creates a path which points to a relative directory of the specified name.
@@ -225,6 +216,15 @@ dir' :: forall s. DirName -> Path Rel Dir s
 ```
 
 Creates a path which points to a relative directory of the specified name.
+
+#### `dirName`
+
+``` purescript
+dirName :: forall a s. Path a Dir s -> Maybe DirName
+```
+
+Retrieves the name of a directory path. Not all paths have such a name, 
+for example, the root or current directory.
 
 #### `(</>)`
 
@@ -245,6 +245,16 @@ Sets the extension of the file to the specified extension.
 ```purescript
 file "image" <.> "png"
 ```
+
+#### `(<..>)`
+
+``` purescript
+(<..>) :: forall a b s s'. Path a Dir s -> Path Rel b s' -> Path a b Unsandboxed
+```
+
+Ascends into the parent of the specified directory, then descends into 
+the specified path. The result is always unsandboxed because it may escape
+its previous sandbox.
 
 #### `isAbsolute`
 
@@ -273,6 +283,47 @@ from the path. Returns `Nothing` if there is no such pair (for example,
 if the last path segment is root directory, current directory, or parent 
 directory).
 
+#### `maybeDir`
+
+``` purescript
+maybeDir :: forall a b s. Path a b s -> Maybe (Path a Dir s)
+```
+
+Determines if the path refers to a directory.
+
+#### `maybeFile`
+
+``` purescript
+maybeFile :: forall a b s. Path a b s -> Maybe (Path a File s)
+```
+
+Determines if the path refers to a file.
+
+#### `maybeRel`
+
+``` purescript
+maybeRel :: forall a b s. Path a b s -> Maybe (Path Rel b s)
+```
+
+Determines if the path is relatively specified.
+
+#### `maybeAbs`
+
+``` purescript
+maybeAbs :: forall a b s. Path a b s -> Maybe (Path Rel b s)
+```
+
+Determines if the path is absolutely specified.
+
+#### `depth`
+
+``` purescript
+depth :: forall a b s. Path a b s -> Number
+```
+
+Returns the depth of the path. This may be negative in some cases, e.g.
+`./../../../` has depth `-3`.
+
 #### `parentDir`
 
 ``` purescript
@@ -297,9 +348,8 @@ Unsandboxes any path (whether sandboxed or not).
 parentDir' :: forall a b s. Path a b s -> Path a Dir Unsandboxed
 ```
 
-Extracts out the parent directory of the specified path. Will use the 
-parent path segment (..) if strictly necessary and therefore can escape 
-a sandboxed path.
+Creates a path that points to the parent directory of the specified path.
+This function always unsandboxes the path.
 
 #### `currentDir`
 

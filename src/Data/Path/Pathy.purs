@@ -15,9 +15,11 @@ module Data.Path.Pathy
   , Unsandboxed()
   , (</>)
   , (<.>)
+  , (<..>)
   , canonicalize
   , changeExtension
   , currentDir
+  , depth
   , dir
   , dir'
   , dirName
@@ -29,6 +31,10 @@ module Data.Path.Pathy
   , identicalPath
   , isAbsolute
   , isRelative
+  , maybeAbs
+  , maybeDir
+  , maybeFile
+  , maybeRel
   , parentDir
   , parentDir'
   , peel
@@ -166,7 +172,15 @@ module Data.Path.Pathy
   changeExtension f nm @ (FileName n) = 
     let 
       ext = f $ extension nm
-    in (\(FileName n) -> if ext == "" then FileName n else FileName $ n ++ "." ++ ext) (dropExtension nm)
+    in (\(FileName n) -> if ext == "" then FileName n else FileName $ n ++ "." ++ ext) (dropExtension nm)  
+
+  -- | Creates a path which points to a relative directory of the specified name.
+  dir :: forall s. String -> Path Rel Dir s
+  dir d = dir' (DirName d)
+
+  -- | Creates a path which points to a relative directory of the specified name.
+  dir' :: forall s. DirName -> Path Rel Dir s
+  dir' d = DirIn Current d
 
   -- | Retrieves the name of a directory path. Not all paths have such a name, 
   -- | for example, the root or current directory.
@@ -174,14 +188,6 @@ module Data.Path.Pathy
   dirName p = case canonicalize p of 
     (DirIn _ d) -> Just d
     _           -> Nothing
-
-  -- | Creates a path which points to a relative directory of the specified name.
-  dir :: String -> Path Rel Dir Sandboxed 
-  dir d = dir' (DirName d)
-
-  -- | Creates a path which points to a relative directory of the specified name.
-  dir' :: forall s. DirName -> Path Rel Dir s
-  dir' d = DirIn Current d
 
   -- | Given a directory path, appends either a file or directory to the path.
   (</>) :: forall a b s. Path a Dir s -> Path Rel b s -> Path a b s
@@ -207,6 +213,12 @@ module Data.Path.Pathy
   (<.>) :: forall a s. Path a File s -> String -> Path a File s
   (<.>) p ext = renameFile (changeExtension $ const ext) p
 
+  -- | Ascends into the parent of the specified directory, then descends into 
+  -- | the specified path. The result is always unsandboxed because it may escape
+  -- | its previous sandbox.
+  (<..>) :: forall a b s s'. Path a Dir s -> Path Rel b s' -> Path a b Unsandboxed
+  (<..>) d p = (parentDir' d) </> unsandbox p
+
   -- | Determines if this path is absolutely located.
   isAbsolute :: forall a b s. Path a b s -> Boolean
   isAbsolute (Current     ) = false
@@ -224,15 +236,52 @@ module Data.Path.Pathy
   -- | if the last path segment is root directory, current directory, or parent 
   -- | directory).
   peel :: forall a b s. Path a b s -> Maybe (Tuple (Path a Dir s) (Either DirName FileName))
-  peel (Current     ) = Nothing
-  peel (Root        ) = Nothing
-  peel (ParentIn p  ) = peel p >>= (fst >>> peel)
-  peel (DirIn    p d) = Just $ maybe (if isAbsolute p then Tuple Root d' else Tuple Current d') 
-                                     (\(Tuple p e) -> Tuple (either (DirIn p) (FileIn p) e) d') (peel p)
-                          where d' = Left d
-  peel (FileIn   p f) = Just $ maybe (if isAbsolute p then Tuple Root f' else Tuple Current f') 
-                                     (\(Tuple p e) -> Tuple (either (DirIn p) (FileIn p) e) f') (peel p)
-                          where f' = Right f
+  peel     (Current     ) = Nothing
+  peel     (Root        ) = Nothing
+  peel p @ (ParentIn _  ) = (\(Tuple c p) -> if c then peel p else Nothing) (canonicalize' p)
+  peel     (DirIn    p d) = Just $ Tuple (unsafeCoerceType p) (Left  d)
+  peel     (FileIn   p f) = Just $ Tuple (unsafeCoerceType p) (Right f)
+
+  -- | Determines if the path refers to a directory.
+  maybeDir :: forall a b s. Path a b s -> Maybe (Path a Dir s)
+  maybeDir (Current     ) = Just Current
+  maybeDir (Root        ) = Just Root 
+  maybeDir (ParentIn p  ) = Just $ ParentIn (unsafeCoerceType p)
+  maybeDir (FileIn   _ _) = Nothing
+  maybeDir (DirIn    p d) = Just $ DirIn (unsafeCoerceType p) d
+
+  -- | Determines if the path refers to a file.
+  maybeFile :: forall a b s. Path a b s -> Maybe (Path a File s)
+  maybeFile (Current     ) = Nothing
+  maybeFile (Root        ) = Nothing 
+  maybeFile (ParentIn _  ) = Nothing
+  maybeFile (FileIn   p f) = (</>) <$> maybeDir p <*> Just (file' f)
+  maybeFile (DirIn    _ _) = Nothing
+
+  -- | Determines if the path is relatively specified.
+  maybeRel :: forall a b s. Path a b s -> Maybe (Path Rel b s)
+  maybeRel (Current     ) = Just Current
+  maybeRel (Root        ) = Nothing
+  maybeRel (ParentIn p  ) = ParentIn <$> maybeRel p
+  maybeRel (FileIn   p f) = flip FileIn f <$> maybeRel p
+  maybeRel (DirIn    p d) = flip DirIn  d <$> maybeRel p  
+  
+  -- | Determines if the path is absolutely specified.
+  maybeAbs :: forall a b s. Path a b s -> Maybe (Path Rel b s)
+  maybeAbs (Current     ) = Nothing
+  maybeAbs (Root        ) = Just Root
+  maybeAbs (ParentIn p  ) = ParentIn <$> maybeAbs p
+  maybeAbs (FileIn   p f) = flip FileIn f <$> maybeAbs p
+  maybeAbs (DirIn    p d) = flip DirIn  d <$> maybeAbs p  
+
+  -- | Returns the depth of the path. This may be negative in some cases, e.g.
+  -- | `./../../../` has depth `-3`.
+  depth :: forall a b s. Path a b s -> Number
+  depth (Current     ) = 0
+  depth (Root        ) = 0
+  depth (ParentIn p  ) = depth p - 1
+  depth (FileIn   p _) = depth p + 1
+  depth (DirIn    p _) = depth p + 1
 
   -- | Attempts to extract out the parent directory of the specified path. If the 
   -- | function would have to use a relative path in the return value, the function will
@@ -248,17 +297,17 @@ module Data.Path.Pathy
   unsandbox (DirIn    p d) = DirIn    (unsandbox p) d
   unsandbox (FileIn   p f) = FileIn   (unsandbox p) f  
 
-  -- | Extracts out the parent directory of the specified path. Will use the 
-  -- | parent path segment (..) if strictly necessary and therefore can escape 
-  -- | a sandboxed path.
+  -- | Creates a path that points to the parent directory of the specified path.
+  -- | This function always unsandboxes the path.
   parentDir' :: forall a b s. Path a b s -> Path a Dir Unsandboxed 
-  parentDir' (Current     ) = ParentIn Current
-  parentDir' (Root        ) = ParentIn Root
-  parentDir' (ParentIn p  ) = ParentIn (parentDir' p)
-  parentDir' (FileIn   p f) = maybe (if isAbsolute p then Root else Current) 
-                                    (\(Tuple p e) -> either (DirIn p) (FileIn p) e) (first unsandbox <$> peel p)
-  parentDir' (DirIn    p f) = maybe (if isAbsolute p then Root else Current) 
-                                    (\(Tuple p e) -> either (DirIn p) (FileIn p) e) (first unsandbox <$> peel p)
+  parentDir' = ParentIn <<< unsafeCoerceType <<< unsandbox
+
+  unsafeCoerceType :: forall a b b' s. Path a b s -> Path a b' s
+  unsafeCoerceType (Current     ) = Current
+  unsafeCoerceType (Root        ) = Root
+  unsafeCoerceType (ParentIn p  ) = ParentIn (unsafeCoerceType p)
+  unsafeCoerceType (DirIn    p d) = DirIn    (unsafeCoerceType p) d
+  unsafeCoerceType (FileIn   p f) = FileIn   (unsafeCoerceType p) f  
 
     -- | The "current directory", which can be used to define relatively-located resources.
   currentDir :: Path Rel Dir Sandboxed 
@@ -415,8 +464,8 @@ module Data.Path.Pathy
     show (Current                ) = "currentDir"
     show (Root                   ) = "rootDir"
     show (ParentIn p             ) = "(parentDir' " ++ show p ++ ")"
-    show (FileIn   p (FileName f)) = show p ++ "(file " ++ f ++ ")"
-    show (DirIn    p (DirName  f)) = show p ++ "(dir "  ++ f ++ ")"
+    show (FileIn   p (FileName f)) = "(" ++ show p ++ " </> file " ++ show f ++ ")"
+    show (DirIn    p (DirName  f)) = "(" ++ show p ++ " </> dir "  ++ show f ++ ")"
 
   instance eqPath :: Eq (Path a b s) where
     (==) p1 p2 = canonicalize p1 == canonicalize p2

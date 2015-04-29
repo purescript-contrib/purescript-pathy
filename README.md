@@ -30,7 +30,7 @@ Many path libraries provide a single abstraction to deal with file system paths.
  * The distinction between paths denoting file resources and paths denoting directories.
  * The distinction between paths that are secure (sandboxed to some location in the file system) and those that are insecure.
 
-*Pathy* also uses a single abstraction for file system paths, called `Path`, but uses *phantom types* to keep track of the distinctions above.
+*Pathy* also uses a single abstraction for file system paths, called `Path`, but uses *phantom types* to keep track of the above distinctions.
 
 This approach lets you write code that performs type-safe composition of relative, absolute, file, and directory paths, and makes sure you never use paths in an unsafe fashion. Bogus and insecure operations simply aren't allowed by the type system!
 
