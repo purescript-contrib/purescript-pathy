@@ -1469,6 +1469,16 @@ PS.Data_Path_Pathy = (function () {
     var parseRelFile = parsePath(Data_Maybe.Just.create)(Prelude["const"](Data_Maybe.Nothing.value))(Prelude["const"](Data_Maybe.Nothing.value))(Prelude["const"](Data_Maybe.Nothing.value));
     
     /**
+     *  | Attempts to parse an absolute file from a string.
+     */
+    var parseAbsFile = parsePath(Prelude["const"](Data_Maybe.Nothing.value))(Data_Maybe.Just.create)(Prelude["const"](Data_Maybe.Nothing.value))(Prelude["const"](Data_Maybe.Nothing.value));
+    
+    /**
+     *  | Attempts to parse an absolute directory from a string.
+     */
+    var parseAbsDir = parsePath(Prelude["const"](Data_Maybe.Nothing.value))(Prelude["const"](Data_Maybe.Nothing.value))(Prelude["const"](Data_Maybe.Nothing.value))(Data_Maybe.Just.create);
+    
+    /**
      *  | Creates a path that points to the parent directory of the specified path.
      *  | This function always unsandboxes the path.
      */
@@ -1797,6 +1807,8 @@ PS.Data_Path_Pathy = (function () {
         relativeTo: relativeTo, 
         parseRelFile: parseRelFile, 
         parseRelDir: parseRelDir, 
+        parseAbsFile: parseAbsFile, 
+        parseAbsDir: parseAbsDir, 
         parsePath: parsePath, 
         posixEscaper: posixEscaper, 
         peel: peel, 
@@ -1873,14 +1885,18 @@ PS.Examples = (function () {
         test$prime("renameFile - single level deep")(Data_Path_Pathy.renameFile(Data_Path_Pathy.dropExtension)(Data_Path_Pathy.file("image.png")))("./image")();
         test$prime("sandbox - sandbox absolute dir to one level higher")(Data_Maybe_Unsafe.fromJust(Data_Path_Pathy.sandbox(Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy["</>"](Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy.dir("bar")))))("./bar/")();
         test(Prelude.showNumber)(Prelude.eqNumber)("depth - negative")(Data_Path_Pathy.depth(Data_Path_Pathy["parentDir'"](Data_Path_Pathy["parentDir'"](Data_Path_Pathy["parentDir'"](Data_Path_Pathy.currentDir)))))(-3)();
-        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - empty string")(Data_Path_Pathy.parseRelDir(""))(Data_Maybe.Just.create(Data_Path_Pathy.currentDir))();
         test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelFile - image.png")(Data_Path_Pathy.parseRelFile("image.png"))(Data_Maybe.Just.create(Data_Path_Pathy.file("image.png")))();
         test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelFile - ./image.png")(Data_Path_Pathy.parseRelFile("./image.png"))(Data_Maybe.Just.create(Data_Path_Pathy.file("image.png")))();
         test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelFile - foo/image.png")(Data_Path_Pathy.parseRelFile("foo/image.png"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy.dir("foo"))(Data_Path_Pathy.file("image.png"))))();
-        Debug_Trace.trace(Data_Path_Pathy.parsePath(Prelude.show(Data_Path_Pathy.showPath))(Prelude.show(Data_Path_Pathy.showPath))(Prelude.show(Data_Path_Pathy.showPath))(Prelude.show(Data_Path_Pathy.showPath))("./foo/bar/"))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseAbsFile - /image.png")(Data_Path_Pathy.parseAbsFile("/image.png"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.file("image.png"))))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseAbsFile - /foo/image.png")(Data_Path_Pathy.parseAbsFile("/foo/image.png"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy.file("image.png"))))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - empty string")(Data_Path_Pathy.parseRelDir(""))(Data_Maybe.Just.create(Data_Path_Pathy.currentDir))();
         test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - foo/")(Data_Path_Pathy.parseRelDir("foo/"))(Data_Maybe.Just.create(Data_Path_Pathy.dir("foo")))();
         test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - foo/bar")(Data_Path_Pathy.parseRelDir("foo/bar/"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy.dir("foo"))(Data_Path_Pathy.dir("bar"))))();
-        return test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - ./foo/bar")(Data_Path_Pathy.parseRelDir("./foo/bar/"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy.dir("foo"))(Data_Path_Pathy.dir("bar"))))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - ./foo/bar")(Data_Path_Pathy.parseRelDir("./foo/bar/"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy.dir("foo"))(Data_Path_Pathy.dir("bar"))))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseAbsDir - /")(Data_Path_Pathy.parseAbsDir("/"))(Data_Maybe.Just.create(Data_Path_Pathy.rootDir))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseAbsDir - /foo/")(Data_Path_Pathy.parseAbsDir("/foo/"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo"))))();
+        return test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseAbsDir - /foo/bar")(Data_Path_Pathy.parseAbsDir("/foo/bar/"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy.dir("bar"))))();
     };
     return {
         main: main, 

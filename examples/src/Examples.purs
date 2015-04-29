@@ -59,18 +59,26 @@ module Examples where
 
     test "depth - negative" (depth (parentDir' $ parentDir' $ parentDir' $ currentDir)) (-3)
 
-    test "parseRelDir - empty string" (parseRelDir "") (Just $ currentDir)
-
     test "parseRelFile - image.png" (parseRelFile "image.png") (Just $ file "image.png")
 
     test "parseRelFile - ./image.png" (parseRelFile "./image.png") (Just $ file "image.png")
 
     test "parseRelFile - foo/image.png" (parseRelFile "foo/image.png") (Just $ dir "foo" </> file "image.png")
 
-    trace $ parsePath show show show show "./foo/bar/"
+    test "parseAbsFile - /image.png" (parseAbsFile "/image.png") (Just $ rootDir </> file "image.png")
+
+    test "parseAbsFile - /foo/image.png" (parseAbsFile "/foo/image.png") (Just $ rootDir </> dir "foo" </> file "image.png")
+
+    test "parseRelDir - empty string" (parseRelDir "") (Just $ currentDir)
 
     test "parseRelDir - foo/" (parseRelDir "foo/") (Just $ dir "foo")
 
     test "parseRelDir - foo/bar" (parseRelDir "foo/bar/") (Just $ dir "foo" </> dir "bar")
 
     test "parseRelDir - ./foo/bar" (parseRelDir "./foo/bar/") (Just $ dir "foo" </> dir "bar")
+
+    test "parseAbsDir - /" (parseAbsDir "/") (Just $ rootDir)
+
+    test "parseAbsDir - /foo/" (parseAbsDir "/foo/") (Just $ rootDir </> dir "foo")
+
+    test "parseAbsDir - /foo/bar" (parseAbsDir "/foo/bar/") (Just $ rootDir </> dir "foo" </> dir "bar")
