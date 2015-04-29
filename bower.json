@@ -1,0 +1,36 @@
+
+{
+  "name": "purescript-pathy",
+  "homepage": "https://github.com/slamdata/purescript-pathy",
+  "description": "A type-safe abstraction for platform-independent file paths",
+  "keywords": [
+    "purescript"
+  ],
+  "license": "Apache 2",
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "output",
+    "tests",
+    "tmp",
+    "bower.json",
+    "Gruntfile.js",
+    "package.json"
+  ],
+  "dependencies": {
+    "purescript-tuples":        "~0.3.0",
+    "purescript-either":        "~0.1.4",
+    "purescript-monoid":        "~0.2.0",
+    "purescript-exceptions":    "~0.2.2",
+    "purescript-control":       "~0.2.2",
+    "purescript-maybe":         "~0.2.1",
+    "purescript-strings":       "~0.4.5",
+    "purescript-monad-eff":     "~0.1.0",
+    "purescript-lists":         "~0.6.0",
+    "purescript-profunctor":    "~0.2.1",
+    "purescript-control":       "~0.2.6",
+    "purescript-foldable-traversable": "~0.3.1",
+    "purescript-transformers":  "~0.5.1"
+  }
+}
