@@ -61,7 +61,7 @@ module Data.Path.Pathy
 
   import Control.Alt((<|>))
   import qualified Data.String as S
-  import Data.Foldable(foldr)
+  import Data.Foldable(foldl)
   import Data.Array((!!), filter, length, zipWith, range)
   import Data.Tuple(Tuple(..), fst, snd)
   import Data.Either(Either(..), either)
@@ -189,6 +189,8 @@ module Data.Path.Pathy
     (DirIn _ d) -> Just d
     _           -> Nothing
 
+  infixl 6 </>
+
   -- | Given a directory path, appends either a file or directory to the path.
   (</>) :: forall a b s. Path a Dir s -> Path Rel b s -> Path a b s
   (</>) (Current       ) (Current       ) = Current
@@ -205,6 +207,8 @@ module Data.Path.Pathy
   (</>) (p1            ) (FileIn   p2 f2) = FileIn   (p1      </> p2     ) f2
   (</>) (p1            ) (DirIn    p2 d2) = DirIn    (p1      </> p2     ) d2
 
+  infixl 6 <.>
+
   -- | Sets the extension of the file to the specified extension.
   -- |
   -- | ```purescript
@@ -212,6 +216,8 @@ module Data.Path.Pathy
   -- | ```
   (<.>) :: forall a s. Path a File s -> String -> Path a File s
   (<.>) p ext = renameFile (changeExtension $ const ext) p
+
+  infixl 6 <..>
 
   -- | Ascends into the parent of the specified directory, then descends into 
   -- | the specified path. The result is always unsandboxed because it may escape
@@ -422,30 +428,26 @@ module Data.Path.Pathy
     (AbsDir  Unsandboxed -> z) -> String -> z
   parsePath rf af rd ad p = 
     let
-      segs      = filter (\s -> S.length s > 0) (S.split "/" p)
-      lastIndex = length segs - 1
-      isAbs     = S.take 1 p == "/"
-      isFile    = maybe false (\last -> if last == "" then false else true) (segs !! lastIndex)
-      tuples    = zipWith Tuple segs (range 0 lastIndex)
+      segs    = S.split "/" p
+      last    = length segs - 1
+      isAbs   = S.take 1 p == "/"
+      isFile  = maybe false (\last -> if last == "" then false else true) (segs !! last)
+      tuples  = zipWith Tuple segs (range 0 last)
 
-      folder :: forall a b s. Tuple String Number -> (Path a b s -> Path a b s) -> (Path a b s -> Path a b s)
-      folder (Tuple seg idx) f = case idx of
-        idx | idx == 0  -> const $ f 
-                           (if seg == "."       then Current                         else
-                            if seg == ".."      then ParentIn Current                else
-                            if seg == ""        then Root                            else 
-                            if idx == lastIndex then FileIn Current (FileName seg)   else 
-                                                     DirIn  Current (DirName  seg))
-        idx             -> if seg == "."  then f                           else
-                           if seg == ".." then \p -> ParentIn (f p)        else
-                           if seg == ""   then f                           else 
-                                               \p -> DirIn (f p) (DirName seg)
+      folder :: forall a b s. Path a b s -> Tuple String Number -> Path a b s
+      folder base (Tuple seg idx) = 
+        if seg == "."   then base                             else
+        if seg == ""    then base                             else
+        if seg == ".."  then ParentIn base                    else                            
+        if isFile && 
+           idx == last  then FileIn   base (FileName seg)     else
+                             DirIn    base (DirName  seg)
     in
       if p == "" then rd Current                                       else
-      if     isAbs &&     isFile then af (foldr folder id tuples Root) else 
-      if     isAbs && not isFile then ad (foldr folder id tuples Root) else
-      if not isAbs &&     isFile then rf (foldr folder id tuples Root) else
-                                      rd (foldr folder id tuples Root)
+      if     isAbs &&     isFile then af (foldl folder Root    tuples) else 
+      if     isAbs && not isFile then ad (foldl folder Root    tuples) else
+      if not isAbs &&     isFile then rf (foldl folder Current tuples) else
+                                      rd (foldl folder Current tuples)
 
   -- | Attempts to parse a relative file from a string.
   parseRelFile :: String -> Maybe (RelFile Unsandboxed)

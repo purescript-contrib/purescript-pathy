@@ -62,3 +62,15 @@ module Examples where
     test "parseRelDir - empty string" (parseRelDir "") (Just $ currentDir)
 
     test "parseRelFile - image.png" (parseRelFile "image.png") (Just $ file "image.png")
+
+    test "parseRelFile - ./image.png" (parseRelFile "./image.png") (Just $ file "image.png")
+
+    test "parseRelFile - foo/image.png" (parseRelFile "foo/image.png") (Just $ dir "foo" </> file "image.png")
+
+    trace $ parsePath show show show show "./foo/bar/"
+
+    test "parseRelDir - foo/" (parseRelDir "foo/") (Just $ dir "foo")
+
+    test "parseRelDir - foo/bar" (parseRelDir "foo/bar/") (Just $ dir "foo" </> dir "bar")
+
+    test "parseRelDir - ./foo/bar" (parseRelDir "./foo/bar/") (Just $ dir "foo" </> dir "bar")

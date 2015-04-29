@@ -157,10 +157,6 @@ PS.Prelude = (function () {
     var Semigroupoid = function ($less$less$less) {
         this["<<<"] = $less$less$less;
     };
-    var Category = function (__superclass_Prelude$dotSemigroupoid_0, id) {
-        this["__superclass_Prelude.Semigroupoid_0"] = __superclass_Prelude$dotSemigroupoid_0;
-        this.id = id;
-    };
     var Show = function (show) {
         this.show = show;
     };
@@ -328,9 +324,6 @@ PS.Prelude = (function () {
             };
         };
     };
-    var id = function (dict) {
-        return dict.id;
-    };
     
     /**
      *  | Flips the order of the arguments to a function of two arguments.
@@ -373,33 +366,17 @@ PS.Prelude = (function () {
             };
         };
     };
-    var $greater = function (__dict_Ord_14) {
-        return function (a1) {
-            return function (a2) {
-                var _644 = compare(__dict_Ord_14)(a1)(a2);
-                if (_644 instanceof GT) {
-                    return true;
-                };
-                return false;
-            };
-        };
-    };
     var $greater$eq = function (__dict_Ord_15) {
         return function (a1) {
             return function (a2) {
-                var _645 = compare(__dict_Ord_15)(a1)(a2);
-                if (_645 instanceof LT) {
+                var _644 = compare(__dict_Ord_15)(a1)(a2);
+                if (_644 instanceof LT) {
                     return false;
                 };
                 return true;
             };
         };
     };
-    var categoryArr = new Category(function () {
-        return semigroupoidArr;
-    }, function (x) {
-        return x;
-    });
     var boolLikeBoolean = new BoolLike(boolAnd, boolNot, boolOr);
     var bitsNumber = new Bits(numAnd, numXor, numOr, numComplement, numShl, numShr, numZshr);
     var ap = function (__dict_Monad_16) {
@@ -430,7 +407,6 @@ PS.Prelude = (function () {
         Apply: Apply, 
         Functor: Functor, 
         Show: Show, 
-        Category: Category, 
         Semigroupoid: Semigroupoid, 
         "++": $plus$plus, 
         "<>": $less$greater, 
@@ -439,7 +415,6 @@ PS.Prelude = (function () {
         "&&": $amp$amp, 
         complement: complement, 
         ">=": $greater$eq, 
-        ">": $greater, 
         "<": $less, 
         compare: compare, 
         refIneq: refIneq, 
@@ -459,13 +434,11 @@ PS.Prelude = (function () {
         "<$>": $less$dollar$greater, 
         show: show, 
         "$": $dollar, 
-        id: id, 
         ">>>": $greater$greater$greater, 
         "<<<": $less$less$less, 
         "const": $$const, 
         flip: flip, 
         semigroupoidArr: semigroupoidArr, 
-        categoryArr: categoryArr, 
         showString: showString, 
         showNumber: showNumber, 
         semiringNumber: semiringNumber, 
@@ -784,11 +757,11 @@ PS.Data_Array = (function () {
             var isInt = function (n_1) {
                 return n_1 !== ~~n_1;
             };
-            var _666 = n < 0 || (n >= length(xs) || isInt(n));
-            if (_666) {
+            var _665 = n < 0 || (n >= length(xs) || isInt(n));
+            if (_665) {
                 return Data_Maybe.Nothing.value;
             };
-            if (!_666) {
+            if (!_665) {
                 return new Data_Maybe.Just(xs[n]);
             };
             throw new Error("Failed pattern match");
@@ -952,6 +925,17 @@ PS.Data_Foldable = (function () {
     var foldr = function (dict) {
         return dict.foldr;
     };
+    
+    /**
+     *  | `Foldable` represents data structures which can be _folded_.
+     *  |
+     *  | - `foldr` folds a structure from the right
+     *  | - `foldl` folds a structure from the left
+     *  | - `foldMap` folds a structure by accumulating values in a `Monoid`
+     */
+    var foldl = function (dict) {
+        return dict.foldl;
+    };
     var foldableArray = new Foldable(function (__dict_Monoid_321) {
         return function (f) {
             return function (xs) {
@@ -979,6 +963,7 @@ PS.Data_Foldable = (function () {
         Foldable: Foldable, 
         foldlArray: foldlArray, 
         foldrArray: foldrArray, 
+        foldl: foldl, 
         foldr: foldr, 
         foldableArray: foldableArray
     };
@@ -996,11 +981,6 @@ PS.Data_String = (function () {
       return function(s) {
         return s.lastIndexOf(x);
       };
-    }
-    ;
-    
-    function length(s) {
-      return s.length;
     }
     ;
     
@@ -1036,7 +1016,6 @@ PS.Data_String = (function () {
         split: split, 
         drop: drop, 
         take: take, 
-        length: length, 
         lastIndexOf: lastIndexOf
     };
 })();
@@ -1397,77 +1376,45 @@ PS.Data_Path_Pathy = (function () {
             return function (rd) {
                 return function (ad) {
                     return function (p) {
-                        var segs = Data_Array.filter(function (s) {
-                            return Data_String.length(s) > 0;
-                        })(Data_String.split("/")(p));
-                        var lastIndex = Data_Array.length(segs) - 1;
-                        var tuples = Data_Array.zipWith(Data_Tuple.Tuple.create)(segs)(Data_Array.range(0)(lastIndex));
-                        var isFile = Data_Maybe.maybe(false)(function (last) {
-                            var _729 = last === "";
-                            if (_729) {
+                        var segs = Data_String.split("/")(p);
+                        var last = Data_Array.length(segs) - 1;
+                        var tuples = Data_Array.zipWith(Data_Tuple.Tuple.create)(segs)(Data_Array.range(0)(last));
+                        var isFile = Data_Maybe.maybe(false)(function (last_1) {
+                            var _728 = last_1 === "";
+                            if (_728) {
                                 return false;
                             };
-                            if (!_729) {
+                            if (!_728) {
                                 return true;
                             };
                             throw new Error("Failed pattern match");
-                        })(Data_Array["!!"](segs)(lastIndex));
+                        })(Data_Array["!!"](segs)(last));
                         var isAbs = Data_String.take(1)(p) === "/";
                         var folder = function (_638) {
                             return function (_639) {
-                                if (_638.value1 === 0) {
-                                    return Prelude["const"](_639((function () {
-                                        var _733 = _638.value0 === ".";
+                                var _731 = _639.value0 === ".";
+                                if (_731) {
+                                    return _638;
+                                };
+                                if (!_731) {
+                                    var _732 = _639.value0 === "";
+                                    if (_732) {
+                                        return _638;
+                                    };
+                                    if (!_732) {
+                                        var _733 = _639.value0 === "..";
                                         if (_733) {
-                                            return Current.value;
+                                            return new ParentIn(_638);
                                         };
                                         if (!_733) {
-                                            var _734 = _638.value0 === "..";
+                                            var _734 = isFile && _639.value1 === last;
                                             if (_734) {
-                                                return new ParentIn(Current.value);
+                                                return new FileIn(_638, _639.value0);
                                             };
                                             if (!_734) {
-                                                var _735 = _638.value0 === "";
-                                                if (_735) {
-                                                    return Root.value;
-                                                };
-                                                if (!_735) {
-                                                    var _736 = _638.value1 === lastIndex;
-                                                    if (_736) {
-                                                        return new FileIn(Current.value, _638.value0);
-                                                    };
-                                                    if (!_736) {
-                                                        return new DirIn(Current.value, _638.value0);
-                                                    };
-                                                    throw new Error("Failed pattern match");
-                                                };
-                                                throw new Error("Failed pattern match");
+                                                return new DirIn(_638, _639.value0);
                                             };
                                             throw new Error("Failed pattern match");
-                                        };
-                                        throw new Error("Failed pattern match");
-                                    })()));
-                                };
-                                var _737 = _638.value0 === ".";
-                                if (_737) {
-                                    return _639;
-                                };
-                                if (!_737) {
-                                    var _738 = _638.value0 === "..";
-                                    if (_738) {
-                                        return function (p_1) {
-                                            return new ParentIn(_639(p_1));
-                                        };
-                                    };
-                                    if (!_738) {
-                                        var _739 = _638.value0 === "";
-                                        if (_739) {
-                                            return _639;
-                                        };
-                                        if (!_739) {
-                                            return function (p_1) {
-                                                return new DirIn(_639(p_1), _638.value0);
-                                            };
                                         };
                                         throw new Error("Failed pattern match");
                                     };
@@ -1476,27 +1423,27 @@ PS.Data_Path_Pathy = (function () {
                                 throw new Error("Failed pattern match");
                             };
                         };
-                        var _742 = p === "";
-                        if (_742) {
+                        var _737 = p === "";
+                        if (_737) {
                             return rd(Current.value);
                         };
-                        if (!_742) {
-                            var _743 = isAbs && isFile;
-                            if (_743) {
-                                return af(Data_Foldable.foldr(Data_Foldable.foldableArray)(folder)(Prelude.id(Prelude.categoryArr))(tuples)(Root.value));
+                        if (!_737) {
+                            var _738 = isAbs && isFile;
+                            if (_738) {
+                                return af(Data_Foldable.foldl(Data_Foldable.foldableArray)(folder)(Root.value)(tuples));
                             };
-                            if (!_743) {
-                                var _744 = isAbs && !isFile;
-                                if (_744) {
-                                    return ad(Data_Foldable.foldr(Data_Foldable.foldableArray)(folder)(Prelude.id(Prelude.categoryArr))(tuples)(Root.value));
+                            if (!_738) {
+                                var _739 = isAbs && !isFile;
+                                if (_739) {
+                                    return ad(Data_Foldable.foldl(Data_Foldable.foldableArray)(folder)(Root.value)(tuples));
                                 };
-                                if (!_744) {
-                                    var _745 = !isAbs && isFile;
-                                    if (_745) {
-                                        return rf(Data_Foldable.foldr(Data_Foldable.foldableArray)(folder)(Prelude.id(Prelude.categoryArr))(tuples)(Root.value));
+                                if (!_739) {
+                                    var _740 = !isAbs && isFile;
+                                    if (_740) {
+                                        return rf(Data_Foldable.foldl(Data_Foldable.foldableArray)(folder)(Current.value)(tuples));
                                     };
-                                    if (!_745) {
-                                        return rd(Data_Foldable.foldr(Data_Foldable.foldableArray)(folder)(Prelude.id(Prelude.categoryArr))(tuples)(Root.value));
+                                    if (!_740) {
+                                        return rd(Data_Foldable.foldl(Data_Foldable.foldableArray)(folder)(Current.value)(tuples));
                                     };
                                     throw new Error("Failed pattern match");
                                 };
@@ -1551,16 +1498,16 @@ PS.Data_Path_Pathy = (function () {
      *  | converts "." into "$dot".
      */
     var posixEscaper = Escaper(Prelude[">>>"](Prelude.semigroupoidArr)(runEscaper(nonEscaper))(function (s) {
-        var _746 = s === "..";
-        if (_746) {
+        var _741 = s === "..";
+        if (_741) {
             return "$dot$dot";
         };
-        if (!_746) {
-            var _747 = s === ".";
-            if (_747) {
+        if (!_741) {
+            var _742 = s === ".";
+            if (_742) {
                 return "$dot";
             };
-            if (!_747) {
+            if (!_742) {
                 return s;
             };
             throw new Error("Failed pattern match");
@@ -1599,11 +1546,11 @@ PS.Data_Path_Pathy = (function () {
      */
     var extension = function (_618) {
         var idx = Data_String.lastIndexOf(".")(_618);
-        var _749 = idx === -1;
-        if (_749) {
+        var _744 = idx === -1;
+        if (_744) {
             return "";
         };
-        if (!_749) {
+        if (!_744) {
             return Data_String.drop(idx + 1)(_618);
         };
         throw new Error("Failed pattern match");
@@ -1614,11 +1561,11 @@ PS.Data_Path_Pathy = (function () {
      */
     var dropExtension = function (_619) {
         var idx = Data_String.lastIndexOf(".")(_619);
-        var _751 = idx === -1;
-        if (_751) {
+        var _746 = idx === -1;
+        if (_746) {
             return _619;
         };
-        if (!_751) {
+        if (!_746) {
             return FileName(Data_String.take(idx)(_619));
         };
         throw new Error("Failed pattern match");
@@ -1673,11 +1620,11 @@ PS.Data_Path_Pathy = (function () {
         return function (_621) {
             var ext = _620(extension(_621));
             return (function (_613) {
-                var _761 = ext === "";
-                if (_761) {
+                var _756 = ext === "";
+                if (_756) {
                     return _613;
                 };
-                if (!_761) {
+                if (!_756) {
                     return FileName(_613 + ("." + ext));
                 };
                 throw new Error("Failed pattern match");
@@ -1795,24 +1742,24 @@ PS.Data_Path_Pathy = (function () {
         return function (p2) {
             var relativeTo$prime = function (p1_1) {
                 return function (p2_1) {
-                    var _788 = identicalPath(p1_1)(p2_1);
-                    if (_788) {
+                    var _783 = identicalPath(p1_1)(p2_1);
+                    if (_783) {
                         return new Data_Maybe.Just(Current.value);
                     };
-                    if (!_788) {
-                        var _789 = peel(p1_1);
-                        if (_789 instanceof Data_Maybe.Nothing) {
-                            var _790 = new Data_Tuple.Tuple(p1_1, p2_1);
-                            if (_790.value0 instanceof Root && _790.value1 instanceof Root) {
+                    if (!_783) {
+                        var _784 = peel(p1_1);
+                        if (_784 instanceof Data_Maybe.Nothing) {
+                            var _785 = new Data_Tuple.Tuple(p1_1, p2_1);
+                            if (_785.value0 instanceof Root && _785.value1 instanceof Root) {
                                 return new Data_Maybe.Just(Current.value);
                             };
-                            if (_790.value0 instanceof Current && _790.value1 instanceof Current) {
+                            if (_785.value0 instanceof Current && _785.value1 instanceof Current) {
                                 return new Data_Maybe.Just(Current.value);
                             };
                             return Data_Maybe.Nothing.value;
                         };
-                        if (_789 instanceof Data_Maybe.Just) {
-                            return Prelude["<$>"](Data_Maybe.functorMaybe)(Prelude.flip($less$div$greater)(Data_Either.either(DirIn.create(Current.value))(FileIn.create(Current.value))(_789.value0.value1)))(relativeTo$prime(_789.value0.value0)(p2_1));
+                        if (_784 instanceof Data_Maybe.Just) {
+                            return Prelude["<$>"](Data_Maybe.functorMaybe)(Prelude.flip($less$div$greater)(Data_Either.either(DirIn.create(Current.value))(FileIn.create(Current.value))(_784.value0.value1)))(relativeTo$prime(_784.value0.value0)(p2_1));
                         };
                         throw new Error("Failed pattern match");
                     };
@@ -1888,11 +1835,11 @@ PS.Examples = (function () {
                     return function (expected) {
                         return function __do() {
                             Debug_Trace.trace("Test: " + name)();
-                            var _798 = Prelude["=="](__dict_Eq_521)(expected)(actual);
-                            if (_798) {
+                            var _793 = Prelude["=="](__dict_Eq_521)(expected)(actual);
+                            if (_793) {
                                 return Debug_Trace.trace("Passed: " + Prelude.show(__dict_Show_520)(expected))();
                             };
-                            if (!_798) {
+                            if (!_793) {
                                 return Debug_Trace.trace("Failed: Expected " + (Prelude.show(__dict_Show_520)(expected) + (" but found " + Prelude.show(__dict_Show_520)(actual))))();
                             };
                             throw new Error("Failed pattern match");
@@ -1927,7 +1874,13 @@ PS.Examples = (function () {
         test$prime("sandbox - sandbox absolute dir to one level higher")(Data_Maybe_Unsafe.fromJust(Data_Path_Pathy.sandbox(Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy["</>"](Data_Path_Pathy["</>"](Data_Path_Pathy.rootDir)(Data_Path_Pathy.dir("foo")))(Data_Path_Pathy.dir("bar")))))("./bar/")();
         test(Prelude.showNumber)(Prelude.eqNumber)("depth - negative")(Data_Path_Pathy.depth(Data_Path_Pathy["parentDir'"](Data_Path_Pathy["parentDir'"](Data_Path_Pathy["parentDir'"](Data_Path_Pathy.currentDir)))))(-3)();
         test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - empty string")(Data_Path_Pathy.parseRelDir(""))(Data_Maybe.Just.create(Data_Path_Pathy.currentDir))();
-        return test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelFile - image.png")(Data_Path_Pathy.parseRelFile("image.png"))(Data_Maybe.Just.create(Data_Path_Pathy.file("image.png")))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelFile - image.png")(Data_Path_Pathy.parseRelFile("image.png"))(Data_Maybe.Just.create(Data_Path_Pathy.file("image.png")))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelFile - ./image.png")(Data_Path_Pathy.parseRelFile("./image.png"))(Data_Maybe.Just.create(Data_Path_Pathy.file("image.png")))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelFile - foo/image.png")(Data_Path_Pathy.parseRelFile("foo/image.png"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy.dir("foo"))(Data_Path_Pathy.file("image.png"))))();
+        Debug_Trace.trace(Data_Path_Pathy.parsePath(Prelude.show(Data_Path_Pathy.showPath))(Prelude.show(Data_Path_Pathy.showPath))(Prelude.show(Data_Path_Pathy.showPath))(Prelude.show(Data_Path_Pathy.showPath))("./foo/bar/"))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - foo/")(Data_Path_Pathy.parseRelDir("foo/"))(Data_Maybe.Just.create(Data_Path_Pathy.dir("foo")))();
+        test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - foo/bar")(Data_Path_Pathy.parseRelDir("foo/bar/"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy.dir("foo"))(Data_Path_Pathy.dir("bar"))))();
+        return test(Data_Maybe.showMaybe(Data_Path_Pathy.showPath))(Data_Maybe.eqMaybe(Data_Path_Pathy.eqPath))("parseRelDir - ./foo/bar")(Data_Path_Pathy.parseRelDir("./foo/bar/"))(Data_Maybe.Just.create(Data_Path_Pathy["</>"](Data_Path_Pathy.dir("foo"))(Data_Path_Pathy.dir("bar"))))();
     };
     return {
         main: main, 
