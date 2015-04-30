@@ -98,7 +98,7 @@ To parse a string into a `Path`, you can use the `parsePath` function, which exp
  * `Path Rel Dir Unsandboxed`
  * `Path Abs Dir Unsandboxed`
 
- If you need a specific case, you can use helper functions such as `parseRelFile`, which return a `Maybe`.
+If you need a specific case, you can use helper functions such as `parseRelFile`, which return a `Maybe`.
 
 ### Print Paths to Strings
 
