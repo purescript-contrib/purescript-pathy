@@ -80,16 +80,16 @@ The `Path a b s` type has three type parameters:
  * `b` &mdash; This may be `Dir` or `File`, indicating whether the path is a file or directory.
  * `s` &mdash; This may be `Sandboxed` or `Unsandboxed`, indicating whether the path has been sandboxed yet or not.
 
- You should try to make the `Path` functions that you write as generic as possible. If you have a function that only cares if a path refers to a file, then you can write it like this:
+You should try to make the `Path` functions that you write as generic as possible. If you have a function that only cares if a path refers to a file, then you can write it like this:
 
- ```purescript
- myFunction :: forall a s. Path a File s -> ...
- myFunction p = ...
- ```
+```purescript
+myFunction :: forall a s. Path a File s -> ...
+myFunction p = ...
+```
 
- By universally quantifying over the type parameters you don't care about, you ensure your code will work with the most paths possible (you also are documenting the expectations of your function to other developers who read your code).
+By universally quantifying over the type parameters you don't care about, you ensure your code will work with the most paths possible (you also are documenting the expectations of your function to other developers who read your code).
 
-### Paths from Strings
+### Parse Paths from Strings
 
 To parse a string into a `Path`, you can use the `parsePath` function, which expects you to handle four cases:
 
@@ -100,7 +100,7 @@ To parse a string into a `Path`, you can use the `parsePath` function, which exp
 
  If you need a specific case, you can use helper functions such as `parseRelFile`, which return a `Maybe`.
 
-### Paths to Strings
+### Print Paths to Strings
 
 You can print any path as a `String` by calling the `printPath` function.
 
