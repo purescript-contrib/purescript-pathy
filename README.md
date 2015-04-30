@@ -72,21 +72,39 @@ file "foo" </> dir "bar"
 
 All these combinations will be disallowed at compile time!
 
-Pathy also carries information on whether a path is a file or directory, and whether it's been sandboxed to some known directory.
+### The Path Type
+
+The `Path a b s` type has three type parameters:
+
+ * `a` &mdash; This may be `Abs` or `Rel`, indicating whether the path is absolute or relative.
+ * `b` &mdash; This may be `Dir` or `File`, indicating whether the path is a file or directory.
+ * `s` &mdash; This may be `Sandboxed` or `Unsandboxed`, indicating whether the path has been sandboxed yet or not.
+
+ You should try to make the `Path` functions that you write as generic as possible. If you have a function that only cares if a path refers to a file, then you can write it like this:
+
+ ```purescript
+ myFunction :: forall a s. Path a File s -> ...
+ myFunction p = ...
+ ```
+
+ By universally quantifying over the type parameters you don't care about, you ensure your code will work with the most paths possible (you also are documenting the expectations of your function to other developers who read your code).
 
 ### Paths from Strings
 
-`parsePath`
+To parse a string into a `Path`, you can use the `parsePath` function, which expects you to handle four cases:
+
+ * `Path Rel File Unsandboxed`
+ * `Path Abs File Unsandboxed`
+ * `Path Rel Dir Unsandboxed`
+ * `Path Abs Dir Unsandboxed`
+
+ If you need a specific case, you can use helper functions such as `parseRelFile`, which return a `Maybe`.
 
 ### Paths to Strings
 
-`printPath`
+You can print any path as a `String` by calling the `printPath` function.
 
-### Basic Path Manipulation
-
-`parentDir`
-
-`parentDir'`
+For security reasons, you can only perform this operation if you have *sandboxed* the path. Sandboxing a path ensures that users cannot escape a sandbox directory that you specify; it's the right thing to do!
 
 ### Sandboxing
 
@@ -107,6 +125,12 @@ This returns a `Maybe`, which is either equal to `Nothing` if the tainted path e
 After you have sandboxed a foreign path, you may call `printPath` on it. There's no need to remember this rule because it's enforced at compile-time by phantom types!
 
 All the path literals you build by hand are automatically sandboxed, unless you call `parentDir'` on them.
+
+### Renaming, Transforming, Etc.
+
+There are many other functions available to you for renaming files, renaming directories, getting parent directories, etc.
+
+These are all documented in [MODULES.md](MODULES.md), and you can find [examples](/examples/Examples.purs) for most of them.
 
 # API Docs
 

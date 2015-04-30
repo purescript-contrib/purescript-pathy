@@ -65,11 +65,15 @@ module Examples where
 
     test "parseRelFile - foo/image.png" (parseRelFile "foo/image.png") (Just $ dir "foo" </> file "image.png")
 
+    test "parseRelFile - ../foo/image.png" (parseRelFile "../foo/image.png") (Just $ currentDir <..> dir "foo" </> file "image.png")
+
     test "parseAbsFile - /image.png" (parseAbsFile "/image.png") (Just $ rootDir </> file "image.png")
 
     test "parseAbsFile - /foo/image.png" (parseAbsFile "/foo/image.png") (Just $ rootDir </> dir "foo" </> file "image.png")
 
     test "parseRelDir - empty string" (parseRelDir "") (Just $ currentDir)
+
+    test "parseRelDir - ./../" (parseRelDir "./../") (Just $ currentDir <..> currentDir)
 
     test "parseRelDir - foo/" (parseRelDir "foo/") (Just $ dir "foo")
 
