@@ -59,6 +59,14 @@ newtype FileName
 
 A newtype around a file name.
 
+#### `runFileName`
+
+``` purescript
+runFileName :: FileName -> String
+```
+
+Unwraps the `FileName` newtype.
+
 #### `DirName`
 
 ``` purescript
@@ -68,28 +76,36 @@ newtype DirName
 
 A newtype around a directory name.
 
+#### `runDirName`
+
+``` purescript
+runDirName :: DirName -> String
+```
+
+Unwraps the `DirName` newtype.
+
 #### `Path`
 
 ``` purescript
 data Path a b s
 ```
 
-A type that describes a Path. All flavors of paths are described by this 
-type, whether they are absolute or relative paths, whether they 
+A type that describes a Path. All flavors of paths are described by this
+type, whether they are absolute or relative paths, whether they
 refer to files or directories, whether they are sandboxed or not.
 
 * The type parameter `a` describes whether the path is `Rel` or `Abs`.
 * The type parameter `b` describes whether the path is `File` or `Dir`.
 * The type parameter `s` describes whether the path is `Sandboxed` or `Unsandboxed`.
 
-To ensure type safety, there is no way for users to create a value of 
+To ensure type safety, there is no way for users to create a value of
 this type directly. Instead, helpers should be used, such as `rootDir`,
 `currentDir`, `file`, `dir`,  `(</>)`, and `parsePath`.
 
 This ADT allows invalid paths (e.g. paths inside files), but there is no
 possible way for such paths to be constructed by user-land code. The only
 "invalid path" that may be constructed is using the `parentDir'` function, e.g.
-`parentDir' rootDir`, or by parsing an equivalent string such as `/../`, 
+`parentDir' rootDir`, or by parsing an equivalent string such as `/../`,
 but such paths are marked as unsandboxed, and may not be rendered to strings
 until they are first sandboxed to some directory.
 
@@ -116,7 +132,7 @@ A type describing a file whose location is absolutely specified.
 type RelDir s = Path Rel Dir s
 ```
 
-A type describing a directory whose location is given relative to some 
+A type describing a directory whose location is given relative to some
 other, unspecified directory (referred to as the "current directory").
 
 #### `AbsDir`
@@ -223,7 +239,7 @@ Creates a path which points to a relative directory of the specified name.
 dirName :: forall a s. Path a Dir s -> Maybe DirName
 ```
 
-Retrieves the name of a directory path. Not all paths have such a name, 
+Retrieves the name of a directory path. Not all paths have such a name,
 for example, the root or current directory.
 
 #### `(</>)`
@@ -252,7 +268,7 @@ file "image" <.> "png"
 (<..>) :: forall a b s s'. Path a Dir s -> Path Rel b s' -> Path a b Unsandboxed
 ```
 
-Ascends into the parent of the specified directory, then descends into 
+Ascends into the parent of the specified directory, then descends into
 the specified path. The result is always unsandboxed because it may escape
 its previous sandbox.
 
@@ -278,9 +294,9 @@ Determines if this path is relatively located.
 peel :: forall a b s. Path a b s -> Maybe (Tuple (Path a Dir s) (Either DirName FileName))
 ```
 
-Peels off the last directory and the terminal file or directory name 
-from the path. Returns `Nothing` if there is no such pair (for example, 
-if the last path segment is root directory, current directory, or parent 
+Peels off the last directory and the terminal file or directory name
+from the path. Returns `Nothing` if there is no such pair (for example,
+if the last path segment is root directory, current directory, or parent
 directory).
 
 #### `maybeDir`
@@ -330,7 +346,7 @@ Returns the depth of the path. This may be negative in some cases, e.g.
 parentDir :: forall a b s. Path a b s -> Maybe (Path a Dir s)
 ```
 
-Attempts to extract out the parent directory of the specified path. If the 
+Attempts to extract out the parent directory of the specified path. If the
 function would have to use a relative path in the return value, the function will
 instead return `Nothing`.
 
@@ -381,7 +397,7 @@ Renames a file path.
 renameDir :: forall a s. (DirName -> DirName) -> Path a Dir s -> Path a Dir s
 ```
 
-Renames a directory path. Note: This is a simple rename of the terminal 
+Renames a directory path. Note: This is a simple rename of the terminal
 directory name, not a "move".
 
 #### `canonicalize`
@@ -412,7 +428,7 @@ unsafePrintPath :: forall a b s. Path a b s -> String
 printPath :: forall a b. Path a b Sandboxed -> String
 ```
 
-Prints a `Path` into its canonical `String` representation. For security 
+Prints a `Path` into its canonical `String` representation. For security
 reasons, the path must be sandboxed before it can be rendered to a string.
 
 #### `printPath'`
@@ -421,8 +437,8 @@ reasons, the path must be sandboxed before it can be rendered to a string.
 printPath' :: forall a b. Escaper -> Path a b Sandboxed -> String
 ```
 
-Prints a `Path` into its canonical `String` representation, using the 
-specified escaper to escape special characters in path segments. For 
+Prints a `Path` into its canonical `String` representation, using the
+specified escaper to escape special characters in path segments. For
 security reasons, the path must be sandboxed before rendering to string.
 
 #### `identicalPath`
@@ -431,8 +447,8 @@ security reasons, the path must be sandboxed before rendering to string.
 identicalPath :: forall a a' b b' s s'. Path a b s -> Path a' b' s' -> Boolean
 ```
 
-Determines if two paths have the exact same representation. Note that 
-two paths may represent the same path even if they have different 
+Determines if two paths have the exact same representation. Note that
+two paths may represent the same path even if they have different
 representations!
 
 #### `relativeTo`
@@ -441,11 +457,11 @@ representations!
 relativeTo :: forall a b s s'. Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
 ```
 
-Makes one path relative to another reference path, if possible, otherwise 
-returns `Nothing`. The returned path inherits the sandbox settings of the 
+Makes one path relative to another reference path, if possible, otherwise
+returns `Nothing`. The returned path inherits the sandbox settings of the
 reference path.
 
-Note there are some cases this function cannot handle. 
+Note there are some cases this function cannot handle.
 
 #### `sandbox`
 
@@ -453,7 +469,7 @@ Note there are some cases this function cannot handle.
 sandbox :: forall a b s. Path a Dir Sandboxed -> Path a b s -> Maybe (Path Rel b Sandboxed)
 ```
 
-Attempts to sandbox a path relative to some directory. If successful, the sandboxed 
+Attempts to sandbox a path relative to some directory. If successful, the sandboxed
 directory will be returned relative to the sandbox directory (although this can easily
 be converted into an absolute path using `</>`).
 
@@ -475,7 +491,7 @@ parsePath :: forall z. (RelFile Unsandboxed -> z) -> (AbsFile Unsandboxed -> z) 
 ```
 
 Parses a canonical `String` representation of a path into a `Path` value.
-Note that in order to be unambiguous, trailing directories should be 
+Note that in order to be unambiguous, trailing directories should be
 marked with a trailing slash character (`'/'`).
 
 #### `parseRelFile`
@@ -521,4 +537,46 @@ instance showPath :: Show (Path a b s)
 
 ``` purescript
 instance eqPath :: Eq (Path a b s)
+```
+
+
+#### `showFileName`
+
+``` purescript
+instance showFileName :: Show FileName
+```
+
+
+#### `eqFileName`
+
+``` purescript
+instance eqFileName :: Eq FileName
+```
+
+
+#### `ordFileName`
+
+``` purescript
+instance ordFileName :: Ord FileName
+```
+
+
+#### `showDirName`
+
+``` purescript
+instance showDirName :: Show DirName
+```
+
+
+#### `eqDirName`
+
+``` purescript
+instance eqDirName :: Eq DirName
+```
+
+
+#### `ordDirName`
+
+``` purescript
+instance ordDirName :: Ord DirName
 ```
