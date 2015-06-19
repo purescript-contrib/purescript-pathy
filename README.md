@@ -8,7 +8,7 @@ A type-safe abstraction for platform-independent file system paths.
 fullPath = rootDir </> dir "baz" </> file "foo.png"
 ```
 
-See the [examples file](/examples/Examples.purs) for more.
+See the [examples file](/examples/src/Examples.purs) for more.
 
 # Getting Started
 
