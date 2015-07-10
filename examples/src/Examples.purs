@@ -1,20 +1,20 @@
 module Examples where 
-  import Debug.Trace(Trace(), trace)
+  import Control.Monad.Eff.Console
   import Control.Monad.Eff(Eff())
   import Data.Maybe(Maybe(..))
   import Data.Maybe.Unsafe(fromJust)
   import Data.Path.Pathy
 
-  test :: forall a. (Show a, Eq a) => String -> a -> a -> Eff (trace :: Trace) Unit
+  test :: forall a. (Show a, Eq a) => String -> a -> a -> Eff (print :: CONSOLE) Unit
   test name actual expected= do
-    trace $ "Test: " ++ name 
-    if expected == actual then trace $ "Passed: " ++ (show expected) else trace $ "Failed: Expected " ++ (show expected) ++ " but found " ++ (show actual)
+    print $ "Test: " ++ name 
+    if expected == actual then print $ "Passed: " ++ (show expected) else print $ "Failed: Expected " ++ (show expected) ++ " but found " ++ (show actual)
 
-  test' :: forall a b s. String -> Path a b s -> String -> Eff (trace :: Trace) Unit
+  test' :: forall a b s. String -> Path a b s -> String -> Eff (print :: CONSOLE) Unit
   test' n p s = test n (unsafePrintPath p) s
 
   main = do
-    trace "NEW TEST"
+    print "NEW TEST"
 
     -- Should not compile:
     -- test "(</>) - file in dir" (printPath (file "image.png" </> dir "foo")) "./image.png/foo"

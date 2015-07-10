@@ -61,6 +61,7 @@ module Data.Path.Pathy
   )
   where
 
+  import Prelude
   import Control.Alt((<|>))
   import qualified Data.String as S
   import Data.Foldable(foldl)
@@ -169,14 +170,16 @@ module Data.Path.Pathy
 
   -- | Retrieves the extension of a file name.
   extension :: FileName -> String
-  extension (FileName f) = let idx = S.lastIndexOf "." f in if idx == -1 then "" else S.drop (idx + 1) f
+  extension (FileName f) = case S.lastIndexOf "." f of 
+    Just x  -> S.drop (x + 1) f
+    Nothing -> ""
 
   -- | Drops the extension on a file name.
   dropExtension :: FileName -> FileName
-  dropExtension (FileName n) =
-    let idx = S.lastIndexOf "." n
-    in if idx == -1 then FileName n else FileName $ S.take idx n
-
+  dropExtension (FileName n) = case S.lastIndexOf "." n of
+    Just x  -> FileName $ S.take x n
+    Nothing -> FileName n
+    
   -- | Changes the extension on a file name.
   changeExtension :: forall a s. (String -> String) -> FileName -> FileName
   changeExtension f nm @ (FileName n) =
@@ -292,7 +295,7 @@ module Data.Path.Pathy
 
   -- | Returns the depth of the path. This may be negative in some cases, e.g.
   -- | `./../../../` has depth `-3`.
-  depth :: forall a b s. Path a b s -> Number
+  depth :: forall a b s. Path a b s -> Int
   depth (Current     ) = 0
   depth (Root        ) = 0
   depth (ParentIn p  ) = depth p - 1
@@ -444,7 +447,7 @@ module Data.Path.Pathy
       isFile  = maybe false (\last -> if last == "" then false else true) (segs !! last)
       tuples  = zipWith Tuple segs (range 0 last)
 
-      folder :: forall a b s. Path a b s -> Tuple String Number -> Path a b s
+      folder :: forall a b s. Path a b s -> Tuple String Int -> Path a b s
       folder base (Tuple seg idx) =
         if seg == "."   then base                             else
         if seg == ""    then base                             else
@@ -483,16 +486,13 @@ module Data.Path.Pathy
     show (DirIn    p (DirName  f)) = "(" ++ show p ++ " </> dir "  ++ show f ++ ")"
 
   instance eqPath :: Eq (Path a b s) where
-    (==) p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
-
-    (/=) p1 p2 = not (p1 == p2)
+    eq p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
 
   instance showFileName :: Show FileName where
     show (FileName name) = "FileName " ++ show name
 
   instance eqFileName :: Eq FileName where
-    (==) (FileName n1) (FileName n2) = n1 == n2
-    (/=) n1 n2 = not (n1 == n2)
+    eq (FileName n1) (FileName n2) = n1 == n2
 
   instance ordFileName :: Ord FileName where
     compare (FileName n1) (FileName n2) = compare n1 n2
@@ -501,8 +501,7 @@ module Data.Path.Pathy
     show (DirName name) = "DirName " ++ show name
 
   instance eqDirName :: Eq DirName where
-    (==) (DirName n1) (DirName n2) = n1 == n2
-    (/=) n1 n2 = not (n1 == n2)
+    eq (DirName n1) (DirName n2) = n1 == n2
 
   instance ordDirName :: Ord DirName where
     compare (DirName n1) (DirName n2) = compare n1 n2
