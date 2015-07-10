@@ -2,7 +2,6 @@
   "name"    : "purescript-pathy",
   "private": true,
   "devDependencies": {
-    "ioredis": "1.1.x",
     "gulp": "^3.8.11",
     "gulp-jscs": "^1.6.0",
     "gulp-jshint": "^1.11.2",

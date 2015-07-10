@@ -19,19 +19,11 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-tuples":                "^0.4.0",
-    "purescript-either":                "^0.2.0",
-    "purescript-monoid":                "^0.3.0",
-    "purescript-exceptions":            "^0.3.0",
-    "purescript-control":               "^0.3.0",
-    "purescript-maybe":                 "^0.3.0",
-    "purescript-strings":               "^0.5.0",
-    "purescript-eff":                   "^0.1.0",
-    "purescript-lists":                 "^0.7.0",
-    "purescript-profunctor":            "^0.3.0",
-    "purescript-control":               "^0.3.0",
-    "purescript-console":               "^0.1.0",
-    "purescript-foldable-traversable":  "^0.4.0",
-    "purescript-transformers":          "^0.6.0"
+    "purescript-console":      "^0.1.0",
+    "purescript-exceptions":   "^0.3.0",
+    "purescript-lists":        "^0.7.0",
+    "purescript-profunctor":   "^0.3.0",
+    "purescript-strings":      "^0.5.2",
+    "purescript-transformers": "^0.6.1"
   }
 }
