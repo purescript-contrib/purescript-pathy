@@ -7,6 +7,10 @@
     "purescript"
   ],
   "license": "Apache 2",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/slamdata/purescript-pathy.git"
+  },
   "ignore": [
     "**/.*",
     "bower_components",
