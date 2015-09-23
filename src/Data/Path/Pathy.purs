@@ -170,7 +170,7 @@ module Data.Path.Pathy
 
   -- | Retrieves the extension of a file name.
   extension :: FileName -> String
-  extension (FileName f) = case S.lastIndexOf "." f of 
+  extension (FileName f) = case S.lastIndexOf "." f of
     Just x  -> S.drop (x + 1) f
     Nothing -> ""
 
@@ -179,7 +179,7 @@ module Data.Path.Pathy
   dropExtension (FileName n) = case S.lastIndexOf "." n of
     Just x  -> FileName $ S.take x n
     Nothing -> FileName n
-    
+
   -- | Changes the extension on a file name.
   changeExtension :: forall a s. (String -> String) -> FileName -> FileName
   changeExtension f nm @ (FileName n) =
@@ -444,7 +444,7 @@ module Data.Path.Pathy
       segs    = S.split "/" p
       last    = length segs - 1
       isAbs   = S.take 1 p == "/"
-      isFile  = maybe false (\last -> if last == "" then false else true) (segs !! last)
+      isFile  = maybe false (/= "") (segs !! last)
       tuples  = zipWith Tuple segs (range 0 last)
 
       folder :: forall a b s. Path a b s -> Tuple String Int -> Path a b s
