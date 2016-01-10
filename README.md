@@ -130,7 +130,7 @@ All the path literals you build by hand are automatically sandboxed, unless you 
 
 There are many other functions available to you for renaming files, renaming directories, getting parent directories, etc.
 
-These are all documented in [MODULES.md](MODULES.md), and you can find [examples](/examples/Examples.purs) for most of them.
+These are all documented in [MODULES.md](MODULES.md), and you can find [examples](/examples/src/Examples.purs) for most of them.
 
 # API Docs
 
