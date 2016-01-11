@@ -16,7 +16,6 @@ module Data.Path.Pathy
   , (</>)
   , (<.>)
   , (<..>)
-  , biFold
   , fold
   , runDirName
   , runFileName
@@ -477,26 +476,17 @@ module Data.Path.Pathy
   parseAbsDir :: String -> Maybe (AbsDir Unsandboxed)
   parseAbsDir = parsePath (const Nothing) (const Nothing) (const Nothing) Just
 
-  -- | Folds a `Path` into a value using a specified function and a provided
-  -- | default.
-  fold :: forall c a b s. (String -> c -> c) -> c -> Path a b s -> c
-  fold _ z (Current                 ) = z
-  fold _ z (Root                    ) = z
-  fold f z (ParentIn p              ) = fold f z p
-  fold f z (FileIn   p (FileName f')) = f f' (fold f z p)
-  fold f z (DirIn    p (DirName  f')) = f f' (fold f z p)
-
-  -- | Folds a `Path` into a value using a two specified functions and a
-  -- | provided default.
+  -- | Folds a `Path` into a value using two specified functions and a provided
+  -- | default value.
   -- |
   -- | The first function folds a `FileName` into our value, and the second
   -- | function folds a `DirName` into our value.
-  biFold :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
-  biFold f g z (Current      ) = z
-  biFold f g z (Root         ) = z
-  biFold f g z (ParentIn p   ) = biFold f g z p
-  biFold f g z (FileIn   p f') = f f' (biFold f g z p)
-  biFold f g z (DirIn    p f') = g f' (biFold f g z p)
+  fold :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
+  fold f g z (Current      ) = z
+  fold f g z (Root         ) = z
+  fold f g z (ParentIn p   ) = fold f g z p
+  fold f g z (FileIn   p f') = f f' (fold f g z p)
+  fold f g z (DirIn    p f') = g f' (fold f g z p)
 
   instance showPath :: Show (Path a b s) where
     show (Current                ) = "currentDir"
