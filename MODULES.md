@@ -1,5 +1,3 @@
-# Module Documentation
-
 ## Module Data.Path.Pathy
 
 #### `Rel`
@@ -59,6 +57,13 @@ newtype FileName
 
 A newtype around a file name.
 
+##### Instances
+``` purescript
+Show FileName
+Eq FileName
+Ord FileName
+```
+
 #### `runFileName`
 
 ``` purescript
@@ -75,6 +80,13 @@ newtype DirName
 ```
 
 A newtype around a directory name.
+
+##### Instances
+``` purescript
+Show DirName
+Eq DirName
+Ord DirName
+```
 
 #### `runDirName`
 
@@ -108,6 +120,12 @@ possible way for such paths to be constructed by user-land code. The only
 `parentDir' rootDir`, or by parsing an equivalent string such as `/../`,
 but such paths are marked as unsandboxed, and may not be rendered to strings
 until they are first sandboxed to some directory.
+
+##### Instances
+``` purescript
+Show (Path a b s)
+Eq (Path a b s)
+```
 
 #### `RelFile`
 
@@ -212,7 +230,7 @@ Drops the extension on a file name.
 #### `changeExtension`
 
 ``` purescript
-changeExtension :: forall a s. (String -> String) -> FileName -> FileName
+changeExtension :: (String -> String) -> FileName -> FileName
 ```
 
 Changes the extension on a file name.
@@ -248,6 +266,8 @@ for example, the root or current directory.
 (</>) :: forall a b s. Path a Dir s -> Path Rel b s -> Path a b s
 ```
 
+_left-associative / precedence 6_
+
 Given a directory path, appends either a file or directory to the path.
 
 #### `(<.>)`
@@ -255,6 +275,8 @@ Given a directory path, appends either a file or directory to the path.
 ``` purescript
 (<.>) :: forall a s. Path a File s -> String -> Path a File s
 ```
+
+_left-associative / precedence 6_
 
 Sets the extension of the file to the specified extension.
 
@@ -267,6 +289,8 @@ file "image" <.> "png"
 ``` purescript
 (<..>) :: forall a b s s'. Path a Dir s -> Path Rel b s' -> Path a b Unsandboxed
 ```
+
+_left-associative / precedence 6_
 
 Ascends into the parent of the specified directory, then descends into
 the specified path. The result is always unsandboxed because it may escape
@@ -334,7 +358,7 @@ Determines if the path is absolutely specified.
 #### `depth`
 
 ``` purescript
-depth :: forall a b s. Path a b s -> Number
+depth :: forall a b s. Path a b s -> Int
 ```
 
 Returns the depth of the path. This may be negative in some cases, e.g.
@@ -414,13 +438,11 @@ Canonicalizes a path, by reducing things in the form `/x/../` to just `/x/`.
 unsafePrintPath' :: forall a b s. Escaper -> Path a b s -> String
 ```
 
-
 #### `unsafePrintPath`
 
 ``` purescript
 unsafePrintPath :: forall a b s. Path a b s -> String
 ```
-
 
 #### `printPath`
 
@@ -526,57 +548,25 @@ parseAbsDir :: String -> Maybe (AbsDir Unsandboxed)
 
 Attempts to parse an absolute directory from a string.
 
-#### `showPath`
+#### `fold`
 
 ``` purescript
-instance showPath :: Show (Path a b s)
+fold :: forall c a b s. (String -> c -> c) -> c -> Path a b s -> c
 ```
 
+Folds a `Path` into a value using a specified function and a provided
+default.
 
-#### `eqPath`
+#### `biFold`
 
 ``` purescript
-instance eqPath :: Eq (Path a b s)
+biFold :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
 ```
 
+Folds a `Path` into a value using a two specified functions and a
+provided default.
 
-#### `showFileName`
-
-``` purescript
-instance showFileName :: Show FileName
-```
-
-
-#### `eqFileName`
-
-``` purescript
-instance eqFileName :: Eq FileName
-```
+The first function folds a `FileName` into our value, and the second
+function folds a `DirName` into our value.
 
 
-#### `ordFileName`
-
-``` purescript
-instance ordFileName :: Ord FileName
-```
-
-
-#### `showDirName`
-
-``` purescript
-instance showDirName :: Show DirName
-```
-
-
-#### `eqDirName`
-
-``` purescript
-instance eqDirName :: Eq DirName
-```
-
-
-#### `ordDirName`
-
-``` purescript
-instance ordDirName :: Ord DirName
-```
