@@ -551,20 +551,11 @@ Attempts to parse an absolute directory from a string.
 #### `fold`
 
 ``` purescript
-fold :: forall c a b s. (String -> c -> c) -> c -> Path a b s -> c
+fold :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
 ```
 
-Folds a `Path` into a value using a specified function and a provided
-default.
-
-#### `biFold`
-
-``` purescript
-biFold :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
-```
-
-Folds a `Path` into a value using a two specified functions and a
-provided default.
+Folds a `Path` into a value using two specified functions and a provided
+default value.
 
 The first function folds a `FileName` into our value, and the second
 function folds a `DirName` into our value.
