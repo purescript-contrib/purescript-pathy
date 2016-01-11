@@ -16,6 +16,7 @@ module Data.Path.Pathy
   , (</>)
   , (<.>)
   , (<..>)
+  , foldNames
   , runDirName
   , runFileName
   , canonicalize
@@ -474,6 +475,21 @@ module Data.Path.Pathy
   -- | Attempts to parse an absolute directory from a string.
   parseAbsDir :: String -> Maybe (AbsDir Unsandboxed)
   parseAbsDir = parsePath (const Nothing) (const Nothing) (const Nothing) Just
+
+  -- | Folds a `Path` into a value using two specified functions and a provided
+  -- | default value.
+  -- |
+  -- | The first function folds a `FileName` into our value, and the second
+  -- | function folds a `DirName` into our value.
+  -- |
+  -- | N.B.: This function only folds over `FileName`s and `DirNames`. It skips
+  -- | over parent nodes, `rootDir` nodes, and `currentDir` nodes.
+  foldNames :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
+  foldNames f g z (Current      ) = z
+  foldNames f g z (Root         ) = z
+  foldNames f g z (ParentIn p   ) = fold f g z p
+  foldNames f g z (FileIn   p f') = f f' (fold f g z p)
+  foldNames f g z (DirIn    p f') = g f' (fold f g z p)
 
   instance showPath :: Show (Path a b s) where
     show (Current                ) = "currentDir"
