@@ -24,7 +24,7 @@ import Data.Path.Pathy
 
 ## Introduction
 
-Applications often have to refer to file system paths in a platform-independent way. 
+Applications often have to refer to file system paths in a platform-independent way.
 
 Many path libraries provide a single abstraction to deal with file system paths. This allows easy composition of different kinds of paths, but comes at the expense of the following distinctions:
 
@@ -130,8 +130,8 @@ All the path literals you build by hand are automatically sandboxed, unless you 
 
 There are many other functions available to you for renaming files, renaming directories, getting parent directories, etc.
 
-These are all documented in [MODULES.md](MODULES.md), and you can find [examples](/examples/Examples.purs) for most of them.
+These are all documented in [the documentation](/docs/Data/Path/Pathy.md), and you can find [examples](/examples/src/Examples.purs) for most of them.
 
 # API Docs
 
-For complete documentation on all functions and types, see [MODULES.md](MODULES.md).
+For complete documentation on all functions and types, see [the documentation](/docs/Data/Path/Pathy.md).

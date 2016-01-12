@@ -16,6 +16,7 @@ module Data.Path.Pathy
   , (</>)
   , (<.>)
   , (<..>)
+  , fold
   , runDirName
   , runFileName
   , canonicalize
@@ -62,15 +63,12 @@ module Data.Path.Pathy
   where
 
   import Prelude
-  import Control.Alt((<|>))
   import qualified Data.String as S
   import Data.Foldable(foldl)
   import Data.Array((!!), filter, length, zipWith, range)
   import Data.Tuple(Tuple(..), fst, snd)
   import Data.Either(Either(..), either)
-  import Data.Maybe(Maybe(..), maybe, fromMaybe)
-  import Data.List(List(..))
-  import Data.Profunctor.Strong(first)
+  import Data.Maybe(Maybe(..), maybe)
 
   -- | The (phantom) type of relative paths.
   foreign import data Rel :: *
@@ -181,7 +179,7 @@ module Data.Path.Pathy
     Nothing -> FileName n
 
   -- | Changes the extension on a file name.
-  changeExtension :: forall a s. (String -> String) -> FileName -> FileName
+  changeExtension :: (String -> String) -> FileName -> FileName
   changeExtension f nm @ (FileName n) =
     let
       ext = f $ extension nm
@@ -404,7 +402,7 @@ module Data.Path.Pathy
   -- | Note there are some cases this function cannot handle.
   relativeTo :: forall a b s s'. Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
   relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2) where
-    relativeTo' :: forall a b s s'. Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
+    relativeTo' :: forall a' b' s'' s'''. Path a' b' s'' -> Path a' Dir s''' -> Maybe (Path Rel b' s''')
     relativeTo' p1 p2 =
       if identicalPath p1 p2 then Just Current else case peel p1 of
         Nothing            -> case Tuple p1 p2 of
@@ -477,6 +475,18 @@ module Data.Path.Pathy
   -- | Attempts to parse an absolute directory from a string.
   parseAbsDir :: String -> Maybe (AbsDir Unsandboxed)
   parseAbsDir = parsePath (const Nothing) (const Nothing) (const Nothing) Just
+
+  -- | Folds a `Path` into a value using two specified functions and a provided
+  -- | default value.
+  -- |
+  -- | The first function folds a `FileName` into our value, and the second
+  -- | function folds a `DirName` into our value.
+  fold :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
+  fold f g z (Current      ) = z
+  fold f g z (Root         ) = z
+  fold f g z (ParentIn p   ) = fold f g z p
+  fold f g z (FileIn   p f') = f f' (fold f g z p)
+  fold f g z (DirIn    p f') = g f' (fold f g z p)
 
   instance showPath :: Show (Path a b s) where
     show (Current                ) = "currentDir"
