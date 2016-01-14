@@ -548,10 +548,10 @@ parseAbsDir :: String -> Maybe (AbsDir Unsandboxed)
 
 Attempts to parse an absolute directory from a string.
 
-#### `fold`
+#### `foldNames`
 
 ``` purescript
-fold :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
+foldNames :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
 ```
 
 Folds a `Path` into a value using two specified functions and a provided
@@ -559,5 +559,8 @@ default value.
 
 The first function folds a `FileName` into our value, and the second
 function folds a `DirName` into our value.
+
+N.B.: This function only folds over `FileName`s and `DirNames`. It skips
+over parent nodes, `rootDir` nodes, and `currentDir` nodes.
 
 

@@ -487,9 +487,9 @@ module Data.Path.Pathy
   foldNames :: forall c a b s. (FileName -> c -> c) -> (DirName -> c -> c) -> c -> Path a b s -> c
   foldNames f g z (Current      ) = z
   foldNames f g z (Root         ) = z
-  foldNames f g z (ParentIn p   ) = fold f g z p
-  foldNames f g z (FileIn   p f') = f f' (fold f g z p)
-  foldNames f g z (DirIn    p f') = g f' (fold f g z p)
+  foldNames f g z (ParentIn p   ) = foldNames f g z p
+  foldNames f g z (FileIn   p f') = f f' (foldNames f g z p)
+  foldNames f g z (DirIn    p f') = g f' (foldNames f g z p)
 
   instance showPath :: Show (Path a b s) where
     show (Current                ) = "currentDir"
