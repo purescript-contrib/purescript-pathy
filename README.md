@@ -1,5 +1,9 @@
 # purescript-pathy
 
+[![Latest release](http://img.shields.io/bower/v/purescript-pathy.svg)](https://github.com/slamdata/purescript-pathy/releases)
+[![Build Status](https://travis-ci.org/slamdata/purescript-pathy.svg?branch=master)](https://travis-ci.org/slamdata/purescript-pathy)
+[![Dependency Status](https://www.versioneye.com/user/projects/56a108062c2fab002500023f/badge.svg?style=flat)](https://www.versioneye.com/user/projects/56a108062c2fab002500023f)
+
 A type-safe abstraction for platform-independent file system paths.
 
 # Example
@@ -134,4 +138,4 @@ These are all documented in [MODULES.md](MODULES.md), and you can find [examples
 
 # API Docs
 
-For complete documentation on all functions and types, see [MODULES.md](MODULES.md).
+Documentation for all functions and types is [published on Pursuit](http://pursuit.purescript.org/packages/purescript-pathy).

@@ -2,9 +2,6 @@
   "name": "purescript-pathy",
   "homepage": "https://github.com/slamdata/purescript-pathy",
   "description": "A type-safe abstraction for platform-independent file paths",
-  "keywords": [
-    "purescript"
-  ],
   "license": "Apache 2",
   "repository": {
     "type": "git",
@@ -15,10 +12,8 @@
     "bower_components",
     "node_modules",
     "output",
-    "tests",
-    "tmp",
+    "test",
     "bower.json",
-    "Gruntfile.js",
     "package.json"
   ],
   "dependencies": {
