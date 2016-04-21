@@ -68,6 +68,7 @@ module Data.Path.Pathy
   import Data.Tuple(Tuple(..), fst, snd)
   import Data.Either(Either(..), either)
   import Data.Maybe(Maybe(..), maybe)
+  import Data.Bifunctor(bimap)
 
   -- | The (phantom) type of relative paths.
   foreign import data Rel :: *
@@ -95,7 +96,7 @@ module Data.Path.Pathy
   runFileName (FileName name) = name
 
   -- | A newtype around a directory name.
-  newtype DirName = DirName  String
+  newtype DirName = DirName String
 
   -- | Unwraps the `DirName` newtype.
   runDirName :: DirName -> String
@@ -134,6 +135,15 @@ module Data.Path.Pathy
 
   -- | A type describing a directory whose location is absolutely specified.
   type AbsDir s = Path Abs Dir s
+
+  -- | A type describing a file or directory path.
+  type AnyPath b s = Either (Path b Dir s) (Path b File s)
+
+  -- | A type describing a relative file or directory path.
+  type RelPath s = AnyPath Rel s
+
+  -- | A type describing an absolute file or directory path.
+  type AbsPath s = AnyPath Abs s
 
   -- | Escapers encode segments or characters which have reserved meaning.
   newtype Escaper = Escaper (String -> String)
@@ -198,6 +208,9 @@ module Data.Path.Pathy
   dirName p = case canonicalize p of
     (DirIn _ d) -> Just d
     _           -> Nothing
+
+  pathName :: forall b s. AnyPath b s -> Either (Maybe DirName) FileName
+  pathName = bimap dirName fileName
 
   infixl 6 </>
 
