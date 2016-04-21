@@ -1,16 +1,19 @@
 module Data.Path.Pathy
   ( Abs()
-  , AbsDir(..)
-  , AbsFile(..)
+  , AbsDir()
+  , AbsFile()
+  , AbsPath()
   , Dir()
   , DirName(..)
   , Escaper(..)
   , File()
   , FileName(..)
   , Path()
+  , AnyPath()
   , Rel()
-  , RelDir(..)
-  , RelFile(..)
+  , RelDir()
+  , RelFile()
+  , RelPath()
   , Sandboxed()
   , Unsandboxed()
   , (</>)
@@ -30,6 +33,7 @@ module Data.Path.Pathy
   , file
   , file'
   , fileName
+  , pathName
   , identicalPath
   , isAbsolute
   , isRelative
