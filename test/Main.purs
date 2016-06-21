@@ -1,23 +1,23 @@
 module Test.Main where
 
   import Prelude
-  import Control.Monad.Eff.Console
-  import Control.Monad.Eff(Eff())
-  import Data.Maybe(Maybe(..))
-  import Data.Maybe.Unsafe(fromJust)
-  import Data.Path.Pathy
+  import Control.Monad.Eff.Console(CONSOLE, infoShow)
+  import Control.Monad.Eff(Eff)
+  import Data.Maybe(Maybe(..), fromJust)
+  import Partial.Unsafe (unsafePartial)
+  import Data.Path.Pathy(Path, dir, rootDir, parseAbsDir, parseRelDir, currentDir, file, parseAbsFile, parseRelFile, parentDir', depth, sandbox, dropExtension, renameFile, canonicalize, unsandbox, unsafePrintPath, (</>), (<..>), (<.>))
 
   test :: forall a. (Show a, Eq a) => String -> a -> a -> Eff (console :: CONSOLE) Unit
   test name actual expected= do
-    print $ "Test: " ++ name
-    if expected == actual then print $ "Passed: " ++ (show expected) else print $ "Failed: Expected " ++ (show expected) ++ " but found " ++ (show actual)
+    infoShow $ "Test: " <> name
+    if expected == actual then infoShow $ "Passed: " <> (show expected) else infoShow $ "Failed: Expected " <> (show expected) <> " but found " <> (show actual)
 
   test' :: forall a b s. String -> Path a b s -> String -> Eff (console :: CONSOLE) Unit
   test' n p s = test n (unsafePrintPath p) s
 
   main :: Eff (console :: CONSOLE) Unit
   main = do
-    print "NEW TEST"
+    infoShow "NEW TEST"
 
     -- Should not compile:
     -- test "(</>) - file in dir" (printPath (file "image.png" </> dir "foo")) "./image.png/foo"
@@ -58,7 +58,7 @@ module Test.Main where
     test' "renameFile - single level deep" (renameFile dropExtension (file "image.png")) "./image"
 
     test' "sandbox - sandbox absolute dir to one level higher"
-          (fromJust $ sandbox (rootDir </> dir "foo") (rootDir </> dir "foo" </> dir "bar")) "./bar/"
+          (unsafePartial $ fromJust $ sandbox (rootDir </> dir "foo") (rootDir </> dir "foo" </> dir "bar")) "./bar/"
 
     test "depth - negative" (depth (parentDir' $ parentDir' $ parentDir' $ currentDir)) (-3)
 
