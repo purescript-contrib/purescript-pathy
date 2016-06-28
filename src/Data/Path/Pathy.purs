@@ -16,8 +16,11 @@ module Data.Path.Pathy
   , RelPath()
   , Sandboxed()
   , Unsandboxed()
+  , appendPath
   , (</>)
+  , setExtension
   , (<.>)
+  , parentAppend
   , (<..>)
   , runDirName
   , runFileName
@@ -66,7 +69,7 @@ module Data.Path.Pathy
   where
 
   import Prelude
-  import qualified Data.String as S
+  import Data.String as S
   import Data.Foldable(foldl)
   import Data.Array((!!), filter, length, zipWith, range)
   import Data.Tuple(Tuple(..), fst, snd)
@@ -196,7 +199,7 @@ module Data.Path.Pathy
   changeExtension f nm @ (FileName n) =
     let
       ext = f $ extension nm
-    in (\(FileName n) -> if ext == "" then FileName n else FileName $ n ++ "." ++ ext) (dropExtension nm)
+    in (\(FileName n) -> if ext == "" then FileName n else FileName $ n <> "." <> ext) (dropExtension nm)
 
   -- | Creates a path which points to a relative directory of the specified name.
   dir :: forall s. String -> Path Rel Dir s
@@ -216,41 +219,41 @@ module Data.Path.Pathy
   pathName :: forall b s. AnyPath b s -> Either (Maybe DirName) FileName
   pathName = bimap dirName fileName
 
-  infixl 6 </>
-
   -- | Given a directory path, appends either a file or directory to the path.
-  (</>) :: forall a b s. Path a Dir s -> Path Rel b s -> Path a b s
-  (</>) (Current       ) (Current       ) = Current
-  (</>) (Root          ) (Current       ) = Root
-  (</>) (ParentIn p1   ) (Current       ) = ParentIn (p1      </> Current)
-  (</>) (FileIn   p1 f1) (Current       ) = FileIn   (p1      </> Current) f1
-  (</>) (DirIn    p1 d1) (Current       ) = DirIn    (p1      </> Current) d1
-  (</>) (Current       ) (Root          ) = Current                           -- doesn't make sense but cannot exist
-  (</>) (Root          ) (Root          ) = Root                              -- doesn't make sense but cannot exist
-  (</>) (ParentIn p1   ) (Root          ) = ParentIn (p1      </> Current)    -- doesn't make sense but cannot exist
-  (</>) (FileIn   p1 f1) (Root          ) = FileIn   (p1      </> Current) f1 -- doesn't make sense but cannot exist
-  (</>) (DirIn    p1 d1) (Root          ) = DirIn    (p1      </> Current) d1 -- doesn't make sense but cannot exist
-  (</>) (p1            ) (ParentIn p2   ) = ParentIn (p1      </> p2     )
-  (</>) (p1            ) (FileIn   p2 f2) = FileIn   (p1      </> p2     ) f2
-  (</>) (p1            ) (DirIn    p2 d2) = DirIn    (p1      </> p2     ) d2
+  appendPath :: forall a b s. Path a Dir s -> Path Rel b s -> Path a b s
+  appendPath (Current       ) (Current       ) = Current
+  appendPath (Root          ) (Current       ) = Root
+  appendPath (ParentIn p1   ) (Current       ) = ParentIn (p1      </> Current)
+  appendPath (FileIn   p1 f1) (Current       ) = FileIn   (p1      </> Current) f1
+  appendPath (DirIn    p1 d1) (Current       ) = DirIn    (p1      </> Current) d1
+  appendPath (Current       ) (Root          ) = Current                           -- doesn't make sense but cannot exist
+  appendPath (Root          ) (Root          ) = Root                              -- doesn't make sense but cannot exist
+  appendPath (ParentIn p1   ) (Root          ) = ParentIn (p1      </> Current)    -- doesn't make sense but cannot exist
+  appendPath (FileIn   p1 f1) (Root          ) = FileIn   (p1      </> Current) f1 -- doesn't make sense but cannot exist
+  appendPath (DirIn    p1 d1) (Root          ) = DirIn    (p1      </> Current) d1 -- doesn't make sense but cannot exist
+  appendPath (p1            ) (ParentIn p2   ) = ParentIn (p1      </> p2     )
+  appendPath (p1            ) (FileIn   p2 f2) = FileIn   (p1      </> p2     ) f2
+  appendPath (p1            ) (DirIn    p2 d2) = DirIn    (p1      </> p2     ) d2
 
-  infixl 6 <.>
+  infixl 6 appendPath as </>
 
   -- | Sets the extension of the file to the specified extension.
   -- |
   -- | ```purescript
   -- | file "image" <.> "png"
   -- | ```
-  (<.>) :: forall a s. Path a File s -> String -> Path a File s
-  (<.>) p ext = renameFile (changeExtension $ const ext) p
+  setExtension :: forall a s. Path a File s -> String -> Path a File s
+  setExtension p ext = renameFile (changeExtension $ const ext) p
 
-  infixl 6 <..>
+  infixl 6 setExtension as <.>
 
   -- | Ascends into the parent of the specified directory, then descends into
   -- | the specified path. The result is always unsandboxed because it may escape
   -- | its previous sandbox.
-  (<..>) :: forall a b s s'. Path a Dir s -> Path Rel b s' -> Path a b Unsandboxed
-  (<..>) d p = (parentDir' d) </> unsandbox p
+  parentAppend :: forall a b s s'. Path a Dir s -> Path Rel b s' -> Path a b Unsandboxed
+  parentAppend d p = (parentDir' d) </> unsandbox p
+
+  infixl 6 parentAppend as <..>
 
   -- | Determines if this path is absolutely located.
   isAbsolute :: forall a b s. Path a b s -> Boolean
@@ -385,11 +388,11 @@ module Data.Path.Pathy
     where
       go (Current)                                  = "./"
       go (Root)                                     = "/"
-      go (ParentIn p)                               = go p ++ "../"
-      go (DirIn    p @ (FileIn _ _ )   (DirName d)) = go p ++ "/" ++ d ++ "/" -- dir inside a file
-      go (DirIn    p   (DirName                 d)) = go p ++ d ++ "/"        -- dir inside a dir
-      go (FileIn   p @ (FileIn  _ _)  (FileName f)) = go p ++ "/" ++ f        -- file inside a file
-      go (FileIn   p   (FileName                f)) = go p ++ f
+      go (ParentIn p)                               = go p <> "../"
+      go (DirIn    p @ (FileIn _ _ )   (DirName d)) = go p <> "/" <> d <> "/" -- dir inside a file
+      go (DirIn    p   (DirName                 d)) = go p <> d <> "/"        -- dir inside a dir
+      go (FileIn   p @ (FileIn  _ _)  (FileName f)) = go p <> "/" <> f        -- file inside a file
+      go (FileIn   p   (FileName                f)) = go p <> f
 
   unsafePrintPath :: forall a b s. Path a b s -> String
   unsafePrintPath = unsafePrintPath' posixEscaper
@@ -458,7 +461,7 @@ module Data.Path.Pathy
       segs    = S.split "/" p
       last    = length segs - 1
       isAbs   = S.take 1 p == "/"
-      isFile  = maybe false (/= "") (segs !! last)
+      isFile  = maybe false (_ /= "") (segs !! last)
       tuples  = zipWith Tuple segs (range 0 last)
 
       folder :: forall a b s. Path a b s -> Tuple String Int -> Path a b s
@@ -495,15 +498,15 @@ module Data.Path.Pathy
   instance showPath :: Show (Path a b s) where
     show (Current                ) = "currentDir"
     show (Root                   ) = "rootDir"
-    show (ParentIn p             ) = "(parentDir' " ++ show p ++ ")"
-    show (FileIn   p (FileName f)) = "(" ++ show p ++ " </> file " ++ show f ++ ")"
-    show (DirIn    p (DirName  f)) = "(" ++ show p ++ " </> dir "  ++ show f ++ ")"
+    show (ParentIn p             ) = "(parentDir' " <> show p <> ")"
+    show (FileIn   p (FileName f)) = "(" <> show p <> " </> file " <> show f <> ")"
+    show (DirIn    p (DirName  f)) = "(" <> show p <> " </> dir "  <> show f <> ")"
 
   instance eqPath :: Eq (Path a b s) where
     eq p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
 
   instance showFileName :: Show FileName where
-    show (FileName name) = "FileName " ++ show name
+    show (FileName name) = "FileName " <> show name
 
   instance eqFileName :: Eq FileName where
     eq (FileName n1) (FileName n2) = n1 == n2
@@ -512,7 +515,7 @@ module Data.Path.Pathy
     compare (FileName n1) (FileName n2) = compare n1 n2
 
   instance showDirName :: Show DirName where
-    show (DirName name) = "DirName " ++ show name
+    show (DirName name) = "DirName " <> show name
 
   instance eqDirName :: Eq DirName where
     eq (DirName n1) (DirName n2) = n1 == n2
