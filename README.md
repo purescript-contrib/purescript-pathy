@@ -12,7 +12,7 @@ A type-safe abstraction for platform-independent file system paths.
 fullPath = rootDir </> dir "baz" </> file "foo.png"
 ```
 
-See the [examples file](/examples/src/Examples.purs) for more.
+See the [tests file](/test/Main.purs) for various example usages more.
 
 # Getting Started
 
@@ -28,7 +28,7 @@ import Data.Path.Pathy
 
 ## Introduction
 
-Applications often have to refer to file system paths in a platform-independent way. 
+Applications often have to refer to file system paths in a platform-independent way.
 
 Many path libraries provide a single abstraction to deal with file system paths. This allows easy composition of different kinds of paths, but comes at the expense of the following distinctions:
 
@@ -57,7 +57,7 @@ Building path liberals is easy. You will typically build path literals from the 
 For example:
 
 ```purescript
-let 
+let
   path1 = rootDir    </> dir "foo" </> dir "bar" </> file "baz.boo"
   path2 = currentDir </> dir "foo"
 in do
@@ -134,7 +134,7 @@ All the path literals you build by hand are automatically sandboxed, unless you 
 
 There are many other functions available to you for renaming files, renaming directories, getting parent directories, etc.
 
-These are all documented in [MODULES.md](MODULES.md), and you can find [examples](/examples/Examples.purs) for most of them.
+These are all documented [on Pursuit](http://pursuit.purescript.org/packages/purescript-pathy), and you can find [test usages](/test/Main.purs) for most of them.
 
 # API Docs
 
