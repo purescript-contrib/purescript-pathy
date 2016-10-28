@@ -171,7 +171,7 @@ runEscaper (Escaper f) = f
 -- | An escaper that does nothing except remove slashes (the bare minimum of
 -- | what must be done).
 nonEscaper :: Escaper
-nonEscaper = Escaper \s -> S.joinWith "" $ filter (_ /= "/") (S.split "" s)
+nonEscaper = Escaper \s -> S.joinWith "" $ filter (_ /= "/") (S.split (S.Pattern "") s)
 
 -- | An escaper that removes all slashes, converts ".." into "$dot$dot", and
 -- | converts "." into "$dot".
@@ -198,13 +198,13 @@ fileName _ = FileName ""
 
 -- | Retrieves the extension of a file name.
 extension :: FileName -> String
-extension (FileName f) = case S.lastIndexOf "." f of
-  Just x  -> S.drop (x + 1) f
+extension (FileName f) = case S.lastIndexOf (S.Pattern ".") f of
+  Just x -> S.drop (x + 1) f
   Nothing -> ""
 
 -- | Drops the extension on a file name.
 dropExtension :: FileName -> FileName
-dropExtension (FileName n) = case S.lastIndexOf "." n of
+dropExtension (FileName n) = case S.lastIndexOf (S.Pattern ".") n of
   Just x -> FileName $ S.take x n
   Nothing -> FileName n
 
@@ -484,7 +484,7 @@ parsePath
 parsePath rd ad rf af "" = rd Current
 parsePath rd ad rf af p =
   let
-    segs    = S.split "/" p
+    segs    = S.split (S.Pattern "/") p
     last    = length segs - 1
     isAbs   = S.take 1 p == "/"
     isFile  = maybe false (_ /= "") (segs !! last)

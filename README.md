@@ -1,8 +1,8 @@
 # purescript-pathy
 
-[![Latest release](http://img.shields.io/bower/v/purescript-pathy.svg)](https://github.com/slamdata/purescript-pathy/releases)
-[![Build Status](https://travis-ci.org/slamdata/purescript-pathy.svg?branch=master)](https://travis-ci.org/slamdata/purescript-pathy)
-[![Dependency Status](https://www.versioneye.com/user/projects/56a108062c2fab002500023f/badge.svg?style=flat)](https://www.versioneye.com/user/projects/56a108062c2fab002500023f)
+[![Latest release](http://img.shields.io/github/release/slamdata/purescript-pathy.svg)](https://github.com/slamdata/purescript-pathy/releases)
+[![Build status](https://travis-ci.org/slamdata/purescript-pathy.svg?branch=master)](https://travis-ci.org/slamdata/purescript-pathy)
+[![Dependency status](https://img.shields.io/librariesio/github/slamdata/purescript-pathy.svg)](https://libraries.io/github/slamdata/purescript-pathy)
 
 A type-safe abstraction for platform-independent file system paths.
 
