@@ -536,14 +536,17 @@ instance ordPath :: Ord (Path a b s) where
     where
     go Current Current = EQ
     go Current _ = LT
+    go _ Current = GT
     go Root Root = EQ
     go Root _ = LT
+    go _ Root = GT
     go (ParentIn p1') (ParentIn p2') = compare p1' p2'
     go (ParentIn _) _ = LT
+    go _ (ParentIn _) = GT
     go (DirIn p1' d1) (DirIn p2' d2) = compare p1' p2' <> compare d1 d2
     go (DirIn _ _) _ = LT
+    go _ (DirIn _ _) = GT
     go (FileIn p1' f1) (FileIn p2' f2) = compare p1' p2' <> compare f1 f2
-    go (FileIn _ _) _ = LT
 
 derive instance genericPath :: Generic (Path a b s)
 
