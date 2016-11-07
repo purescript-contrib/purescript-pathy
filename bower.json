@@ -27,6 +27,7 @@
     "purescript-unsafe-coerce": "^2.0.0"
   },
   "devDependencies": {
+    "purescript-quickcheck": "^3.1.0",
     "purescript-quickcheck-laws": "^2.0.0"
   }
 }

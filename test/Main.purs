@@ -38,17 +38,7 @@ instance arbitraryArbPath ∷ QC.Arbitrary ArbPath where
     pure $ ArbPath $ rootDir </> foldl (flip (</>)) filename (dirs ∷ Array (Path Rel Dir Sandboxed))
 
 pathPart ∷ Gen.Gen String
-pathPart = suchThat QC.arbitrary (not <<< Str.null)
-
-suchThat :: forall a. Gen.Gen a -> (a -> Boolean) -> Gen.Gen a
-suchThat gen pred = tailRecM go unit
-  where
-  go :: Unit -> Gen.Gen (Step Unit a)
-  go _ = do
-    a <- gen
-    if pred a
-      then pure $ Done a
-      else pure $ Loop unit
+pathPart = Gen.suchThat QC.arbitrary (not <<< Str.null)
 
 main :: QC.QC () Unit
 main = do
