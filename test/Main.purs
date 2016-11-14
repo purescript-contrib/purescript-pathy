@@ -1,24 +1,47 @@
 module Test.Main where
 
 import Prelude
-import Control.Monad.Eff.Console (CONSOLE, infoShow)
-import Control.Monad.Eff(Eff)
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE, info, infoShow)
+import Control.Monad.Rec.Class (Step(..), tailRecM)
+import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..), fromJust)
-import Data.Path.Pathy (Path, dir, rootDir, parseAbsDir, parseRelDir, currentDir, file, parseAbsFile, parseRelFile, parentDir', depth, sandbox, dropExtension, renameFile, canonicalize, unsandbox, unsafePrintPath, (</>), (<..>), (<.>))
+import Data.Path.Pathy (Path, Abs, Rel, Dir, File, Sandboxed, dir, rootDir, parseAbsDir, parseRelDir, currentDir, file, parseAbsFile, parseRelFile, parentDir', depth, sandbox, dropExtension, renameFile, canonicalize, unsandbox, unsafePrintPath, (</>), (<..>), (<.>))
+import Data.String as Str
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck as QC
+import Test.QuickCheck.Gen as Gen
+import Test.QuickCheck.Laws.Data as Laws.Data
+import Type.Proxy (Proxy(..))
 
-test :: forall a. (Show a, Eq a) => String -> a -> a -> Eff (console :: CONSOLE) Unit
+test :: forall a eff. (Show a, Eq a) => String -> a -> a -> Eff (console :: CONSOLE | eff) Unit
 test name actual expected= do
   infoShow $ "Test: " <> name
   if expected == actual then infoShow $ "Passed: " <> (show expected) else infoShow $ "Failed: Expected " <> (show expected) <> " but found " <> (show actual)
 
-test' :: forall a b s. String -> Path a b s -> String -> Eff (console :: CONSOLE) Unit
+test' :: forall a b s eff. String -> Path a b s -> String -> Eff (console :: CONSOLE | eff) Unit
 test' n p s = test n (unsafePrintPath p) s
 
-main :: Eff (console :: CONSOLE) Unit
-main = do
-  infoShow "NEW TEST"
+newtype ArbPath = ArbPath (Path Abs File Sandboxed)
 
+derive newtype instance eqArbPath :: Eq ArbPath
+derive newtype instance ordArbPath :: Ord ArbPath
+
+runArbPath ∷ ArbPath → (Path Abs File Sandboxed)
+runArbPath (ArbPath p) = p
+
+instance arbitraryArbPath ∷ QC.Arbitrary ArbPath where
+  arbitrary = do
+    numDirs ← Gen.chooseInt 1 10
+    dirs ← map dir <$> Gen.vectorOf numDirs pathPart
+    filename ← file <$> pathPart
+    pure $ ArbPath $ rootDir </> foldl (flip (</>)) filename (dirs ∷ Array (Path Rel Dir Sandboxed))
+
+pathPart ∷ Gen.Gen String
+pathPart = Gen.suchThat QC.arbitrary (not <<< Str.null)
+
+main :: QC.QC () Unit
+main = do
   -- Should not compile:
   -- test "(</>) - file in dir" (printPath (file "image.png" </> dir "foo")) "./image.png/foo"
 
@@ -89,3 +112,7 @@ main = do
   test "parseAbsDir - /foo/" (parseAbsDir "/foo/") (Just $ rootDir </> dir "foo")
 
   test "parseAbsDir - /foo/bar" (parseAbsDir "/foo/bar/") (Just $ rootDir </> dir "foo" </> dir "bar")
+
+  info "Checking typeclass laws..."
+  Laws.Data.checkEq (Proxy :: Proxy ArbPath)
+  Laws.Data.checkOrd (Proxy :: Proxy ArbPath)
