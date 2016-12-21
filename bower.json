@@ -2,7 +2,7 @@
   "name": "purescript-pathy",
   "homepage": "https://github.com/slamdata/purescript-pathy",
   "description": "A type-safe abstraction for platform-independent file paths",
-  "license": "Apache 2",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git://github.com/slamdata/purescript-pathy.git"
