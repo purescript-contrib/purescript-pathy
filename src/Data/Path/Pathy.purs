@@ -298,7 +298,7 @@ peel
 peel Current = Nothing
 peel Root = Nothing
 peel p@(ParentIn _) = case canonicalize' p of
-  Tuple true p -> peel p
+  Tuple true p' -> peel p'
   _ -> Nothing
 peel (DirIn p d) = Just $ Tuple (unsafeCoerceType p) (Left d)
 peel (FileIn p f) = Just $ Tuple (unsafeCoerceType p) (Right f)
@@ -445,11 +445,11 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
   relativeTo' :: forall b'. Path a b' s -> Path a Dir s' -> Maybe (Path Rel b' s')
   relativeTo' Root Root = Just Current
   relativeTo' Current Current = Just Current
-  relativeTo' p1 p2
-    | identicalPath p1 p2 = Just Current
-    | otherwise = case peel p1 of
-        Just (Tuple p1' e) ->
-          flip (</>) (either (DirIn Current) (FileIn Current) e) <$> relativeTo' p1' p2
+  relativeTo' cp1 cp2
+    | identicalPath cp1 cp2 = Just Current
+    | otherwise = case peel cp1 of
+        Just (Tuple cp1' e) ->
+          flip (</>) (either (DirIn Current) (FileIn Current) e) <$> relativeTo' cp1' cp2
         Nothing -> Nothing
 
 -- | Attempts to sandbox a path relative to some directory. If successful, the sandboxed
