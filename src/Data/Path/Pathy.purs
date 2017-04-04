@@ -74,7 +74,6 @@ import Data.Array ((!!), filter, length, zipWith, range)
 import Data.Bifunctor (bimap)
 import Data.Either (Either(..), either)
 import Data.Foldable (foldl)
-import Data.Generic (class Generic)
 import Data.Maybe (Maybe(..), maybe)
 import Data.String as S
 import Data.Tuple (Tuple(..), fst, snd)
@@ -82,22 +81,22 @@ import Data.Tuple (Tuple(..), fst, snd)
 import Unsafe.Coerce (unsafeCoerce)
 
 -- | The (phantom) type of relative paths.
-foreign import data Rel :: *
+foreign import data Rel :: Type
 
 -- | The (phantom) type of absolute paths.
-foreign import data Abs :: *
+foreign import data Abs :: Type
 
 -- | The (phantom) type of files.
-foreign import data File :: *
+foreign import data File :: Type
 
 -- | The (phantom) type of directories.
-foreign import data Dir :: *
+foreign import data Dir :: Type
 
 -- | The (phantom) type of unsandboxed paths.
-foreign import data Unsandboxed :: *
+foreign import data Unsandboxed :: Type
 
 -- | The (phantom) type of sandboxed paths.
-foreign import data Sandboxed :: *
+foreign import data Sandboxed :: Type
 
 -- | A newtype around a file name.
 newtype FileName = FileName String
@@ -548,18 +547,14 @@ instance ordPath :: Ord (Path a b s) where
     go _ (DirIn _ _) = GT
     go (FileIn p1' f1) (FileIn p2' f2) = compare p1' p2' <> compare f1 f2
 
-derive instance genericPath :: Generic (Path a b s)
-
 instance showFileName :: Show FileName where
   show (FileName name) = "(FileName " <> show name <> ")"
 
 derive instance eqFileName :: Eq FileName
 derive instance ordFileName :: Ord FileName
-derive instance genericFileName :: Generic FileName
 
 instance showDirName :: Show DirName where
   show (DirName name) = "(DirName " <> show name <> ")"
 
 derive instance eqDirName :: Eq DirName
 derive instance ordDirName :: Ord DirName
-derive instance genericDirName :: Generic DirName

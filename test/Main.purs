@@ -3,7 +3,6 @@ module Test.Main where
 import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, info, infoShow)
-import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Path.Pathy (Path, Abs, Rel, Dir, File, Sandboxed, dir, rootDir, parseAbsDir, parseRelDir, currentDir, file, parseAbsFile, parseRelFile, parentDir', depth, sandbox, dropExtension, renameFile, canonicalize, unsandbox, unsafePrintPath, (</>), (<..>), (<.>))
@@ -14,7 +13,7 @@ import Test.QuickCheck.Gen as Gen
 import Test.QuickCheck.Laws.Data as Laws.Data
 import Type.Proxy (Proxy(..))
 
-test :: forall a eff. (Show a, Eq a) => String -> a -> a -> Eff (console :: CONSOLE | eff) Unit
+test :: forall a eff. Show a => Eq a => String -> a -> a -> Eff (console :: CONSOLE | eff) Unit
 test name actual expected= do
   infoShow $ "Test: " <> name
   if expected == actual then infoShow $ "Passed: " <> (show expected) else infoShow $ "Failed: Expected " <> (show expected) <> " but found " <> (show actual)
