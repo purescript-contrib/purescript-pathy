@@ -318,21 +318,21 @@ maybeFile (ParentIn _) = Nothing
 maybeFile (FileIn p f) = (</>) <$> maybeDir p <*> Just (file' f)
 maybeFile (DirIn _ _) = Nothing
 
+-- | Determines if the path is relatively or absolutely specified.
+eitherRelAbs :: forall a b s. Path a b s -> Either (Path Rel b s) (Path Abs b s)
+eitherRelAbs Current = Left Current
+eitherRelAbs Root = Right Root
+eitherRelAbs (ParentIn p) = bimap (ParentIn) (ParentIn) (eitherRelAbs p)
+eitherRelAbs (FileIn p f) = bimap (flip FileIn f) (flip FileIn f) (eitherRelAbs p)
+eitherRelAbs (DirIn p d) = bimap (flip DirIn  d) (flip DirIn  d) (eitherRelAbs p)
+
 -- | Determines if the path is relatively specified.
 maybeRel :: forall a b s. Path a b s -> Maybe (Path Rel b s)
-maybeRel Current = Just Current
-maybeRel Root = Nothing
-maybeRel (ParentIn p) = ParentIn <$> maybeRel p
-maybeRel (FileIn p f) = flip FileIn f <$> maybeRel p
-maybeRel (DirIn p d) = flip DirIn  d <$> maybeRel p
+maybeRel = eitherRelAbs >>> either Just (const Nothing)
 
 -- | Determines if the path is absolutely specified.
-maybeAbs :: forall a b s. Path a b s -> Maybe (Path Rel b s)
-maybeAbs Current = Nothing
-maybeAbs Root = Just Root
-maybeAbs (ParentIn p) = ParentIn <$> maybeAbs p
-maybeAbs (FileIn p f) = flip FileIn f <$> maybeAbs p
-maybeAbs (DirIn p d) = flip DirIn  d <$> maybeAbs p
+maybeAbs :: forall a b s. Path a b s -> Maybe (Path Abs b s)
+maybeAbs = eitherRelAbs >>> either (const Nothing) Just
 
 -- | Returns the depth of the path. This may be negative in some cases, e.g.
 -- | `./../../../` has depth `-3`.
