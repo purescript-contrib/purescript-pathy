@@ -4,10 +4,9 @@ module Data.Path.Pathy
   , AbsFile
   , AbsPath
   , Dir
-  , DirName(..)
+  , Name(..)
   , Escaper(..)
   , File
-  , FileName(..)
   , Path
   , AnyPath
   , Rel
@@ -22,8 +21,7 @@ module Data.Path.Pathy
   , (<.>)
   , parentAppend
   , (<..>)
-  , runDirName
-  , runFileName
+  , runName
   , canonicalize
   , changeExtension
   , currentDir
@@ -105,18 +103,11 @@ foreign import data Unsandboxed :: SandboxedOrNot
 foreign import data Sandboxed :: SandboxedOrNot
 
 -- | A newtype around a file name.
-newtype FileName = FileName String
+newtype Name (n :: FileOrDir) = Name String
 
--- | Unwraps the `FileName` newtype.
-runFileName :: FileName -> String
-runFileName (FileName name) = name
-
--- | A newtype around a directory name.
-newtype DirName = DirName String
-
--- | Unwraps the `DirName` newtype.
-runDirName :: DirName -> String
-runDirName (DirName name) = name
+-- | Unwraps the `Name` newtype.
+runName :: forall a. Name a -> String
+runName (Name name) = name
 
 -- | A type that describes a Path. All flavors of paths are described by this
 -- | type, whether they are absolute or relative paths, whether they
@@ -140,8 +131,8 @@ data Path (a :: RelOrAbs) (b :: FileOrDir) (s :: SandboxedOrNot)
   = Current
   | Root
   | ParentIn (Path a b s)
-  | DirIn (Path a b s) DirName
-  | FileIn (Path a b s) FileName
+  | DirIn (Path a Dir s) (Name Dir)
+  | FileIn (Path a Dir s) (Name File)
 
 -- | A type describing a file whose location is given relative to some other,
 -- | unspecified directory (referred to as the "current directory").
@@ -190,53 +181,53 @@ posixEscaper = Escaper $
 
 -- | Creates a path which points to a relative file of the specified name.
 file :: forall s. String -> Path Rel File s
-file f = file' (FileName f)
+file f = file' (Name f)
 
 -- | Creates a path which points to a relative file of the specified name.
-file' :: forall s. FileName -> Path Rel File s
+file' :: forall s. Name File -> Path Rel File s
 file' f = FileIn Current f
 
 -- | Retrieves the name of a file path.
-fileName :: forall a s. Path a File s -> FileName
+fileName :: forall a s. Path a File s -> Name File
 fileName (FileIn _ f) = f
-fileName _ = FileName ""
+fileName _ = Name ""
 
 -- | Retrieves the extension of a file name.
-extension :: FileName -> String
-extension (FileName f) = case S.lastIndexOf (S.Pattern ".") f of
+extension :: Name File -> String
+extension (Name f) = case S.lastIndexOf (S.Pattern ".") f of
   Just x -> S.drop (x + 1) f
   Nothing -> ""
 
 -- | Drops the extension on a file name.
-dropExtension :: FileName -> FileName
-dropExtension (FileName n) = case S.lastIndexOf (S.Pattern ".") n of
-  Just x -> FileName $ S.take x n
-  Nothing -> FileName n
+dropExtension :: Name File -> Name File
+dropExtension (Name n) = case S.lastIndexOf (S.Pattern ".") n of
+  Just x -> Name $ S.take x n
+  Nothing -> Name n
 
 -- | Changes the extension on a file name.
-changeExtension :: (String -> String) -> FileName -> FileName
+changeExtension :: (String -> String) -> Name File -> Name File
 changeExtension f nm =
   update (f $ extension nm) (dropExtension nm)
   where
   update "" n = n
-  update ext (FileName n) = FileName $ n <> "." <> ext
+  update ext (Name n) = Name $ n <> "." <> ext
 
 -- | Creates a path which points to a relative directory of the specified name.
 dir :: forall s. String -> Path Rel Dir s
-dir d = dir' (DirName d)
+dir d = dir' (Name d)
 
 -- | Creates a path which points to a relative directory of the specified name.
-dir' :: forall s. DirName -> Path Rel Dir s
+dir' :: forall s. Name Dir -> Path Rel Dir s
 dir' d = DirIn Current d
 
 -- | Retrieves the name of a directory path. Not all paths have such a name,
 -- | for example, the root or current directory.
-dirName :: forall a s. Path a Dir s -> Maybe DirName
+dirName :: forall a s. Path a Dir s -> Maybe (Name Dir)
 dirName p = case canonicalize p of
   DirIn _ d -> Just d
   _ -> Nothing
 
-pathName :: forall b s. AnyPath b s -> Either (Maybe DirName) FileName
+pathName :: forall b s. AnyPath b s -> Either (Maybe (Name Dir)) (Name File)
 pathName = bimap dirName fileName
 
 -- | Given a directory path, appends either a file or directory to the path.
@@ -299,14 +290,14 @@ isRelative = not <<< isAbsolute
 peel
   :: forall a b s
    . Path a b s
-  -> Maybe (Tuple (Path a Dir s) (Either DirName FileName))
+  -> Maybe (Tuple (Path a Dir s) (Name b))
 peel Current = Nothing
 peel Root = Nothing
 peel p@(ParentIn _) = case canonicalize' p of
   Tuple true p' -> peel p'
   _ -> Nothing
-peel (DirIn p d) = Just $ Tuple (unsafeCoerceType p) (Left d)
-peel (FileIn p f) = Just $ Tuple (unsafeCoerceType p) (Right f)
+peel (DirIn p (Name d)) = Just $ Tuple p (Name d)
+peel (FileIn p (Name f)) = Just $ Tuple p (Name f)
 
 -- | Determines if the path refers to a directory.
 maybeDir :: forall a b s. Path a b s -> Maybe (Path a Dir s)
@@ -314,7 +305,7 @@ maybeDir Current = Just Current
 maybeDir Root = Just Root
 maybeDir (ParentIn p) = Just $ ParentIn (unsafeCoerceType p)
 maybeDir (FileIn _ _) = Nothing
-maybeDir (DirIn p d) = Just $ DirIn (unsafeCoerceType p) d
+maybeDir (DirIn p d) = Just $ DirIn p d
 
 -- | Determines if the path refers to a file.
 maybeFile :: forall a b s. Path a b s -> Maybe (Path a File s)
@@ -380,13 +371,13 @@ rootDir :: forall s. Path Abs Dir s
 rootDir = Root
 
 -- | Renames a file path.
-renameFile :: forall a s. (FileName -> FileName) -> Path a File s -> Path a File s
+renameFile :: forall a s. (Name File -> Name File) -> Path a File s -> Path a File s
 renameFile f (FileIn p f0) = FileIn p (f f0)
 renameFile _ p = p
 
 -- | Renames a directory path. Note: This is a simple rename of the terminal
 -- | directory name, not a "move".
-renameDir :: forall a s. (DirName -> DirName) -> Path a Dir s -> Path a Dir s
+renameDir :: forall a s. (Name Dir -> Name Dir) -> Path a Dir s -> Path a Dir s
 renameDir f (DirIn p d) = DirIn p (f d)
 renameDir _ p = p
 
@@ -398,8 +389,8 @@ canonicalize = snd <<< canonicalize'
 canonicalize' :: forall a b s. Path a b s -> Tuple Boolean (Path a b s)
 canonicalize' Current = Tuple false Current
 canonicalize' Root = Tuple false Root
-canonicalize' (ParentIn (FileIn p f)) = Tuple true  (snd $ canonicalize' p)
-canonicalize' (ParentIn (DirIn  p f)) = Tuple true  (snd $ canonicalize' p)
+canonicalize' (ParentIn (FileIn p f)) = Tuple true  (unsafeCoerceType $ snd $ canonicalize' p)
+canonicalize' (ParentIn (DirIn  p f)) = Tuple true  (unsafeCoerceType $ snd $ canonicalize' p)
 canonicalize' (ParentIn p) = case canonicalize' p of
   Tuple changed p' ->
     let p'' = ParentIn p'
@@ -410,13 +401,14 @@ canonicalize' (DirIn p d) = flip DirIn d <$> canonicalize' p
 unsafePrintPath' :: forall a b s. Escaper -> Path a b s -> String
 unsafePrintPath' r = go
   where
+    go :: forall a' b' s'. Path a' b' s' -> String
     go Current = "./"
     go Root = "/"
     go (ParentIn p) = go p <> "../"
-    go (DirIn p@(FileIn _ _ ) (DirName d)) = go p <> "/" <> escape d <> "/" -- dir inside a file
-    go (DirIn p (DirName d)) = go p <> escape d <> "/" -- dir inside a dir
-    go (FileIn p@(FileIn  _ _) (FileName f)) = go p <> "/" <> escape f -- file inside a file
-    go (FileIn p (FileName f)) = go p <> escape f
+    go (DirIn p@(FileIn _ _ ) (Name d)) = go p <> "/" <> escape d <> "/" -- dir inside a file
+    go (DirIn p (Name d)) = go p <> escape d <> "/" -- dir inside a dir
+    go (FileIn p@(FileIn  _ _) (Name f)) = go p <> "/" <> escape f -- file inside a file
+    go (FileIn p (Name f)) = go p <> escape f
     escape = runEscaper r
 
 unsafePrintPath :: forall a b s. Path a b s -> String
@@ -455,6 +447,7 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
     | otherwise = case peel cp1 of
         Just (Tuple cp1' e) ->
           flip (</>) (either (DirIn Current) (FileIn Current) e) <$> relativeTo' cp1' cp2
+          -- e is not either so it fails here
         Nothing -> Nothing
 
 -- | Attempts to sandbox a path relative to some directory. If successful, the sandboxed
@@ -467,13 +460,15 @@ sandbox :: forall a b s. Path a Dir Sandboxed -> Path a b s -> Maybe (Path Rel b
 sandbox p1 p2 = p2 `relativeTo` p1
 
 -- | Refines path segments but does not change anything else.
-refine :: forall a b s. (FileName -> FileName) -> (DirName -> DirName) -> Path a b s -> Path a b s
+refine :: forall a b s. (Name File -> Name File) -> (Name Dir -> Name Dir) -> Path a b s -> Path a b s
 refine f d = go
-  where go (Current      ) = Current
-        go (Root         ) = Root
-        go (ParentIn p   ) = ParentIn (go p)
-        go (DirIn    p d0) = DirIn    (go p) (d d0)
-        go (FileIn   p f0) = FileIn   (go p) (f f0)
+  where
+    go :: forall a' b' s'. Path a' b' s' -> Path a' b' s'
+    go (Current      ) = Current
+    go (Root         ) = Root
+    go (ParentIn p   ) = ParentIn (go p)
+    go (DirIn    p d0) = DirIn    (go p) (d d0)
+    go (FileIn   p f0) = FileIn   (go p) (f f0)
 
 -- | Parses a canonical `String` representation of a path into a `Path` value.
 -- | Note that in order to be unambiguous, trailing directories should be
@@ -501,8 +496,8 @@ parsePath rd ad rf af p =
         "." -> base
         "" -> base
         ".." -> ParentIn base
-        _ | isFile && idx == last -> FileIn base (FileName seg)
-          | otherwise -> DirIn base (DirName seg)
+        _ | isFile && idx == last -> FileIn (unsafeCoerceType base) (Name seg)
+          | otherwise -> DirIn (unsafeCoerceType base) (Name seg)
   in
     case isAbs, isFile of
       true, true -> af (foldl folder Root tuples)
@@ -530,8 +525,8 @@ instance showPath :: Show (Path a b s) where
   show Current = "currentDir"
   show Root = "rootDir"
   show (ParentIn p) = "(parentDir' " <> show p <> ")"
-  show (FileIn p (FileName f)) = "(" <> show p <> " </> file " <> show f <> ")"
-  show (DirIn p (DirName f)) = "(" <> show p <> " </> dir "  <> show f <> ")"
+  show (FileIn p (Name f)) = "(" <> show p <> " </> file " <> show f <> ")"
+  show (DirIn p (Name f)) = "(" <> show p <> " </> dir "  <> show f <> ")"
 
 instance eqPath :: Eq (Path a b s) where
   eq p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
@@ -553,14 +548,8 @@ instance ordPath :: Ord (Path a b s) where
     go _ (DirIn _ _) = GT
     go (FileIn p1' f1) (FileIn p2' f2) = compare p1' p2' <> compare f1 f2
 
-instance showFileName :: Show FileName where
-  show (FileName name) = "(FileName " <> show name <> ")"
+instance showName :: Show (Name a) where
+  show (Name name) = "(Name " <> show name <> ")"
 
-derive instance eqFileName :: Eq FileName
-derive instance ordFileName :: Ord FileName
-
-instance showDirName :: Show DirName where
-  show (DirName name) = "(DirName " <> show name <> ")"
-
-derive instance eqDirName :: Eq DirName
-derive instance ordDirName :: Ord DirName
+derive instance eqName :: Eq (Name a)
+derive instance ordName :: Ord (Name a)
