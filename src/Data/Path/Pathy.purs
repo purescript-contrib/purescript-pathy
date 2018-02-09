@@ -80,23 +80,29 @@ import Data.Tuple (Tuple(..), fst, snd)
 
 import Unsafe.Coerce (unsafeCoerce)
 
+foreign import kind RelOrAbs
+
+foreign import kind FileOrDir
+
+foreign import kind SandboxedOrNot
+
 -- | The (phantom) type of relative paths.
-foreign import data Rel :: Type
+foreign import data Rel :: RelOrAbs
 
 -- | The (phantom) type of absolute paths.
-foreign import data Abs :: Type
+foreign import data Abs :: RelOrAbs
 
 -- | The (phantom) type of files.
-foreign import data File :: Type
+foreign import data File :: FileOrDir
 
 -- | The (phantom) type of directories.
-foreign import data Dir :: Type
+foreign import data Dir :: FileOrDir
 
 -- | The (phantom) type of unsandboxed paths.
-foreign import data Unsandboxed :: Type
+foreign import data Unsandboxed :: SandboxedOrNot
 
 -- | The (phantom) type of sandboxed paths.
-foreign import data Sandboxed :: Type
+foreign import data Sandboxed :: SandboxedOrNot
 
 -- | A newtype around a file name.
 newtype FileName = FileName String
@@ -130,7 +136,7 @@ runDirName (DirName name) = name
 -- | `parentDir' rootDir`, or by parsing an equivalent string such as `/../`,
 -- | but such paths are marked as unsandboxed, and may not be rendered to strings
 -- | until they are first sandboxed to some directory.
-data Path a b s
+data Path (a :: RelOrAbs) (b :: FileOrDir) (s :: SandboxedOrNot)
   = Current
   | Root
   | ParentIn (Path a b s)
