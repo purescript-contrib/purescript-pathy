@@ -440,15 +440,28 @@ relativeTo :: forall a b s s'. Path a b s -> Path a Dir s' -> Maybe (Path Rel b 
 relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
   where
   relativeTo' :: forall b'. Path a b' s -> Path a Dir s' -> Maybe (Path Rel b' s')
-  relativeTo' Root Root = Just Current
-  relativeTo' Current Current = Just Current
+  relativeTo' Root Root = pure Current
+  relativeTo' Current Current = pure Current
   relativeTo' cp1 cp2
-    | identicalPath cp1 cp2 = Just Current
-    | otherwise = case peel cp1 of
-        Just (Tuple cp1' e) ->
-          flip (</>) (either (DirIn Current) (FileIn Current) e) <$> relativeTo' cp1' cp2
-          -- e is not either so it fails here
-        Nothing -> Nothing
+    | identicalPath cp1 cp2 = pure Current
+    | otherwise = do
+      Tuple cp1Parent cp1Top <- peel' cp1
+      rel <- relativeTo' cp1Parent cp2
+      pure $ rel </> either (DirIn Current) (FileIn Current) cp1Top
+
+  -- Specialised version of `peel` which is not using canonicalaise for 
+  -- `ParentIn _` as it's input is canonicalized already.
+  -- it also returns Either of Dir and File Names so we can 
+  -- decide if DirIn or FileIn is needed.
+  peel'
+    :: forall a' b' s''
+    .  Path a' b' s''
+    -> Maybe (Tuple (Path a' Dir s'') (Either (Name Dir) (Name File)))
+  peel' Current = Nothing
+  peel' Root = Nothing
+  peel' (ParentIn _) = Nothing
+  peel' (DirIn p (Name d)) = Just $ Tuple p (Left $ Name d)
+  peel' (FileIn p (Name f)) = Just $ Tuple p (Right $ Name f)
 
 -- | Attempts to sandbox a path relative to some directory. If successful, the sandboxed
 -- | directory will be returned relative to the sandbox directory (although this can easily
