@@ -1,6 +1,7 @@
 module Data.Path.Pathy
   ( Abs
   , AbsDir
+  , ParseError
   , AbsFile
   , AbsPath
   , Dir
@@ -57,6 +58,7 @@ module Data.Path.Pathy
   , relativeTo
   , renameDir
   , renameFile
+  , renameFile'
   , rootDir
   , runEscaper
   , sandbox
@@ -68,14 +70,19 @@ module Data.Path.Pathy
 
 import Prelude
 
-import Data.Array ((!!), filter, length, zipWith, range)
+import Data.Array (drop, dropEnd, filter, length)
 import Data.Bifunctor (bimap)
 import Data.Either (Either(..), either)
-import Data.Foldable (foldl)
-import Data.Maybe (Maybe(..), maybe)
+import Data.FoldableWithIndex (foldlWithIndex)
+import Data.Identity (Identity(..))
+import Data.Maybe (Maybe(..))
+import Data.Newtype (un)
 import Data.String as S
+import Data.String.NonEmpty (NonEmptyString, appendString)
+import Data.String.NonEmpty (fromString, toString) as NEString
+import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, snd)
-
+import Partial.Unsafe (unsafeCrashWith)
 import Unsafe.Coerce (unsafeCoerce)
 
 foreign import kind RelOrAbs
@@ -103,11 +110,11 @@ foreign import data Unsandboxed :: SandboxedOrNot
 foreign import data Sandboxed :: SandboxedOrNot
 
 -- | A newtype around a file name.
-newtype Name (n :: FileOrDir) = Name String
+newtype Name (n :: FileOrDir) = Name NonEmptyString
 
 -- | Unwraps the `Name` newtype.
 runName :: forall a. Name a -> String
-runName (Name name) = name
+runName (Name name) = NEString.toString name
 
 -- | A type that describes a Path. All flavors of paths are described by this
 -- | type, whether they are absolute or relative paths, whether they
@@ -180,7 +187,7 @@ posixEscaper = Escaper $
       s -> s
 
 -- | Creates a path which points to a relative file of the specified name.
-file :: forall s. String -> Path Rel File s
+file :: forall s. NonEmptyString -> Path Rel File s
 file f = file' (Name f)
 
 -- | Creates a path which points to a relative file of the specified name.
@@ -190,30 +197,49 @@ file' f = FileIn Current f
 -- | Retrieves the name of a file path.
 fileName :: forall a s. Path a File s -> Name File
 fileName (FileIn _ f) = f
-fileName _ = Name ""
+fileName _ = unsafeCrashWith
+  """Hit unrechable path in Data.Pathy.fileName
+  Based on type of this function, it must be called with a Path such that FileIn node is a root node
+  The reason might be a bug in this module or incorrect unsafeCoerce in it's use site
+  """
 
 -- | Retrieves the extension of a file name.
 extension :: Name File -> String
-extension (Name f) = case S.lastIndexOf (S.Pattern ".") f of
-  Just x -> S.drop (x + 1) f
-  Nothing -> ""
+extension (Name f) =
+  let s = NEString.toString f
+  in case S.lastIndexOf (S.Pattern ".") s of
+    Just x -> S.drop (x + 1) s
+    Nothing -> ""
 
 -- | Drops the extension on a file name.
-dropExtension :: Name File -> Name File
-dropExtension (Name n) = case S.lastIndexOf (S.Pattern ".") n of
-  Just x -> Name $ S.take x n
-  Nothing -> Name n
+dropExtension :: Name File -> Maybe (Name File)
+dropExtension (Name n) = 
+  let
+    s = NEString.toString n
+  in case S.lastIndexOf (S.Pattern ".") s of
+    Just x -> map Name $ NEString.fromString $ S.take x s
+    Nothing -> Just (Name n)
 
--- | Changes the extension on a file name.
-changeExtension :: (String -> String) -> Name File -> Name File
+changeExtension :: (String -> String) -> Name File -> Maybe (Name File)
 changeExtension f nm =
   update (f $ extension nm) (dropExtension nm)
   where
-  update "" n = n
-  update ext (Name n) = Name $ n <> "." <> ext
+  update ext' name = case NEString.fromString ext' of
+    Nothing -> name
+    Just ext -> Just $ _updateExt ext name
+
+changeExtension' :: (String -> NonEmptyString) -> Name File -> Name File
+changeExtension' f nm =
+  _updateExt (f $ extension nm) (dropExtension nm)
+
+
+_updateExt :: NonEmptyString -> Maybe (Name File) -> Name File
+_updateExt ext = case _ of
+  Just (Name n) -> Name $ n `appendString` "." <> ext
+  Nothing -> Name ext
 
 -- | Creates a path which points to a relative directory of the specified name.
-dir :: forall s. String -> Path Rel Dir s
+dir :: forall s. NonEmptyString -> Path Rel Dir s
 dir d = dir' (Name d)
 
 -- | Creates a path which points to a relative directory of the specified name.
@@ -254,8 +280,8 @@ infixl 6 appendPath as </>
 -- | ```purescript
 -- | file "image" <.> "png"
 -- | ```
-setExtension :: forall a s. Path a File s -> String -> Path a File s
-setExtension p ext = renameFile (changeExtension $ const ext) p
+setExtension :: forall a s. Path a File s -> NonEmptyString -> Path a File s
+setExtension p ext = renameFile (changeExtension' $ const ext) p
 
 infixl 6 setExtension as <.>
 
@@ -372,8 +398,11 @@ rootDir = Root
 
 -- | Renames a file path.
 renameFile :: forall a s. (Name File -> Name File) -> Path a File s -> Path a File s
-renameFile f (FileIn p f0) = FileIn p (f f0)
-renameFile _ p = p
+renameFile f = un Identity <<< renameFile' (pure <<< f)
+
+renameFile' :: forall f a s. Applicative f => (Name File -> f (Name File)) -> Path a File s -> f (Path a File s)
+renameFile' f (FileIn p f0) = FileIn p <$> f f0 
+renameFile' _ p = pure p
 
 -- | Renames a directory path. Note: This is a simple rename of the terminal
 -- | directory name, not a "move".
@@ -405,10 +434,10 @@ unsafePrintPath' r = go
     go Current = "./"
     go Root = "/"
     go (ParentIn p) = go p <> "../"
-    go (DirIn p@(FileIn _ _ ) (Name d)) = go p <> "/" <> escape d <> "/" -- dir inside a file
-    go (DirIn p (Name d)) = go p <> escape d <> "/" -- dir inside a dir
-    go (FileIn p@(FileIn  _ _) (Name f)) = go p <> "/" <> escape f -- file inside a file
-    go (FileIn p (Name f)) = go p <> escape f
+    go (DirIn p@(FileIn _ _ ) d) = go p <> "/" <> escape (runName d) <> "/" -- dir inside a file
+    go (DirIn p d) = go p <> escape (runName d) <> "/" -- dir inside a dir
+    go (FileIn p@(FileIn  _ _) f) = go p <> "/" <> escape (runName f) -- file inside a file
+    go (FileIn p f) = go p <> escape (runName f)
     escape = runEscaper r
 
 unsafePrintPath :: forall a b s. Path a b s -> String
@@ -483,6 +512,8 @@ refine f d = go
     go (DirIn    p d0) = DirIn    (go p) (d d0)
     go (FileIn   p f0) = FileIn   (go p) (f f0)
 
+type ParseError = Unit
+
 -- | Parses a canonical `String` representation of a path into a `Path` value.
 -- | Note that in order to be unambiguous, trailing directories should be
 -- | marked with a trailing slash character (`'/'`).
@@ -492,47 +523,58 @@ parsePath
   -> (AbsDir Unsandboxed -> z)
   -> (RelFile Unsandboxed -> z)
   -> (AbsFile Unsandboxed -> z)
+  -> (ParseError -> z)
   -> String
   -> z
-parsePath rd ad rf af "" = rd Current
-parsePath rd ad rf af p =
+parsePath rd ad rf af err "" = err unit
+parsePath rd ad rf af err "/" = ad Root
+parsePath rd ad rf af err p =
   let
-    segs    = S.split (S.Pattern "/") p
-    last    = length segs - 1
-    isAbs   = S.take 1 p == "/"
-    isFile  = maybe false (_ /= "") (segs !! last)
-    tuples  = zipWith Tuple segs (range 0 last)
-
-    folder :: forall a b s. Path a b s -> Tuple String Int -> Path a b s
-    folder base (Tuple seg idx) =
-      case seg of
-        "." -> base
-        "" -> base
-        ".." -> ParentIn base
-        _ | isFile && idx == last -> FileIn (unsafeCoerceType base) (Name seg)
-          | otherwise -> DirIn (unsafeCoerceType base) (Name seg)
+    isAbs = S.take 1 p == "/"
+    isFile = S.takeRight 1 p /= "/"
+    segsRaw = S.split (S.Pattern "/") p
+    segsDropped =
+      -- drop last or/and first empty segment(s) if any
+      case isAbs, isFile of
+        true, true -> drop 1 $ segsRaw
+        true, false -> drop 1 $ dropEnd 1 segsRaw
+        false, true -> segsRaw
+        false, false -> dropEnd 1 segsRaw
+    last = length segsDropped - 1
+    folder :: forall a b s. Int -> Path a b s -> NonEmptyString -> Path a b s
+    folder idx base seg =
+      if NEString.toString seg == "." then
+        base
+      else if NEString.toString seg == ".." then
+        ParentIn base
+      else if isFile && idx == last then
+        FileIn (unsafeCoerceType base) (Name seg)
+      else
+        DirIn (unsafeCoerceType base) (Name seg)
   in
-    case isAbs, isFile of
-      true, true -> af (foldl folder Root tuples)
-      true, false -> ad (foldl folder Root tuples)
-      false, true -> rf (foldl folder Current tuples)
-      false, false -> rd (foldl folder Current tuples)
+    case traverse NEString.fromString segsDropped of
+      Nothing -> err unit
+      Just segs -> case isAbs, isFile of
+        true, true -> af $ foldlWithIndex folder Root segs
+        true, false -> ad $ foldlWithIndex folder Root segs
+        false, true -> rf $ foldlWithIndex folder Current segs
+        false, false -> rd $ foldlWithIndex folder Current segs
 
 -- | Attempts to parse a relative file from a string.
 parseRelFile :: String -> Maybe (RelFile Unsandboxed)
-parseRelFile = parsePath (const Nothing) (const Nothing) Just (const Nothing)
+parseRelFile = parsePath (const Nothing) (const Nothing) Just (const Nothing) (const Nothing)
 
 -- | Attempts to parse an absolute file from a string.
 parseAbsFile :: String -> Maybe (AbsFile Unsandboxed)
-parseAbsFile = parsePath (const Nothing) (const Nothing) (const Nothing) Just
+parseAbsFile = parsePath (const Nothing) (const Nothing) (const Nothing) Just (const Nothing)
 
 -- | Attempts to parse a relative directory from a string.
 parseRelDir :: String -> Maybe (RelDir Unsandboxed)
-parseRelDir = parsePath Just (const Nothing) (const Nothing) (const Nothing)
+parseRelDir = parsePath Just (const Nothing) (const Nothing) (const Nothing) (const Nothing)
 
 -- | Attempts to parse an absolute directory from a string.
 parseAbsDir :: String -> Maybe (AbsDir Unsandboxed)
-parseAbsDir = parsePath (const Nothing) Just (const Nothing) (const Nothing)
+parseAbsDir = parsePath (const Nothing) Just (const Nothing) (const Nothing) (const Nothing)
 
 instance showPath :: Show (Path a b s) where
   show Current = "currentDir"

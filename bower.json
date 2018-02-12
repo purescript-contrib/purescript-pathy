@@ -22,7 +22,7 @@
     "purescript-lists": "^4.0.0",
     "purescript-partial": "^1.2.0",
     "purescript-profunctor": "^3.0.0",
-    "purescript-strings": "safareli/purescript-strings#non-empty",
+    "purescript-strings": "purescript/purescript-strings#nonempty",
     "purescript-transformers": "^3.0.0",
     "purescript-unsafe-coerce": "^3.0.0"
   },
