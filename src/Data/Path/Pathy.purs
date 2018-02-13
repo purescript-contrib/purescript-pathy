@@ -51,8 +51,8 @@ module Data.Path.Pathy
   , class SplitRelOrAbs
   , relOrAbs
   , class SplitDirOrFile
+  , dirOrFileF
   , dirOrFile
-  , class SplitDirOrFileName
   , dirOrFileName
   , refine
   , relativeTo
@@ -76,7 +76,7 @@ import Data.Either (Either(..))
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..))
-import Data.Newtype (un)
+import Data.Newtype (class Newtype, un)
 import Data.String as S
 import Data.String.NonEmpty (NonEmptyString, appendString)
 import Data.String.NonEmpty (fromString, toString) as NEString
@@ -163,18 +163,20 @@ type RelPath s = AnyPath Rel s
 -- | A type describing an absolute file or directory path.
 type AbsPath s = AnyPath Abs s
 
-class SplitDirOrFile (b :: DirOrFile) where
-  dirOrFile :: forall a s. Path a b s -> AnyPath a s
+newtype PathFlipped a s b = PathFlipped (Path a b s)
+derive instance newtypePathFlipped ∷ Newtype (PathFlipped a s b) _
 
-instance relSplitDirOrFile :: SplitDirOrFile Dir where dirOrFile = Left
-instance absSplitDirOrFile :: SplitDirOrFile File where dirOrFile = Right
+class SplitDirOrFile (x :: DirOrFile) where
+  dirOrFileF :: forall f. f x -> Either (f Dir) (f File)
 
-class SplitDirOrFileName (b :: DirOrFile) where
-  dirOrFileName :: Name b -> Either (Name Dir) (Name File)
+instance relSplitDirOrFile :: SplitDirOrFile Dir where dirOrFileF = Left
+instance absSplitDirOrFile :: SplitDirOrFile File where dirOrFileF = Right
 
-instance relSplitDirOrFileName :: SplitDirOrFileName Dir where dirOrFileName = Left
-instance absSplitDirOrFileName :: SplitDirOrFileName File where dirOrFileName = Right
-
+dirOrFile :: forall a b s. SplitDirOrFile b => Path a b s -> AnyPath a s
+dirOrFile p = bimap (un PathFlipped) (un PathFlipped) $ dirOrFileF (PathFlipped p)
+  
+dirOrFileName :: forall b. SplitDirOrFile b => Name b -> Either (Name Dir) (Name File)
+dirOrFileName = dirOrFileF
 
 class SplitRelOrAbs (a :: RelOrAbs) where
   relOrAbs :: forall b s. Path a b s -> Either (Path Rel b s) (Path Abs b s)
@@ -393,10 +395,10 @@ canonicalize' (ParentIn p) = case canonicalize' p of
     in if changed then canonicalize' p'' else Tuple changed p''
 canonicalize' (In p f) = flip In f <$> canonicalize' p
 
-unsafePrintPath' :: forall a b s. SplitDirOrFileName b => Escaper -> Path a b s -> String
+unsafePrintPath' :: forall a b s. SplitDirOrFile b => Escaper -> Path a b s -> String
 unsafePrintPath' r = go
   where
-    go :: forall a' b' s'. SplitDirOrFileName b' => Path a' b' s' -> String
+    go :: forall a' b' s'. SplitDirOrFile b' => Path a' b' s' -> String
     go Current = "./"
     go Root = "/"
     go (ParentIn p) = go p <> "../"
@@ -405,24 +407,24 @@ unsafePrintPath' r = go
       Right fileN -> go p <> escape (runName fileN)
     escape = runEscaper r
 
-unsafePrintPath :: forall a b s. SplitDirOrFileName b => Path a b s -> String
+unsafePrintPath :: forall a b s. SplitDirOrFile b => Path a b s -> String
 unsafePrintPath = unsafePrintPath' posixEscaper
 
 -- | Prints a `Path` into its canonical `String` representation. For security
 -- | reasons, the path must be sandboxed before it can be rendered to a string.
-printPath :: forall a b. SplitDirOrFileName b => Path a b Sandboxed -> String
+printPath :: forall a b. SplitDirOrFile b => Path a b Sandboxed -> String
 printPath = unsafePrintPath
 
 -- | Prints a `Path` into its canonical `String` representation, using the
 -- | specified escaper to escape special characters in path segments. For
 -- | security reasons, the path must be sandboxed before rendering to string.
-printPath' :: forall a b. SplitDirOrFileName b => Escaper -> Path a b Sandboxed -> String
+printPath' :: forall a b. SplitDirOrFile b => Escaper -> Path a b Sandboxed -> String
 printPath' = unsafePrintPath'
 
 -- | Determines if two paths have the exact same representation. Note that
 -- | two paths may represent the same path even if they have different
 -- | representations!
-identicalPath :: forall a a' b b' s s'. SplitDirOrFileName b => SplitDirOrFileName b' => Path a b s -> Path a' b' s' -> Boolean
+identicalPath :: forall a a' b b' s s'. SplitDirOrFile b => SplitDirOrFile b' => Path a b s -> Path a' b' s' -> Boolean
 identicalPath p1 p2 = show p1 == show p2
 
 -- | Makes one path relative to another reference path, if possible, otherwise
@@ -430,10 +432,10 @@ identicalPath p1 p2 = show p1 == show p2
 -- | reference path.
 -- |
 -- | Note there are some cases this function cannot handle.
-relativeTo :: forall a b s s'. SplitDirOrFile b => SplitDirOrFileName b => Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
+relativeTo :: forall a b s s'. SplitDirOrFile b => Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
 relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
   where
-  relativeTo' :: forall b'. SplitDirOrFile b' => SplitDirOrFileName b' => Path a b' s -> Path a Dir s' -> Maybe (Path Rel b' s')
+  relativeTo' :: forall b'. SplitDirOrFile b' => Path a b' s -> Path a Dir s' -> Maybe (Path Rel b' s')
   relativeTo' Root Root = pure Current
   relativeTo' Current Current = pure Current
   relativeTo' cp1 cp2
@@ -455,7 +457,7 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
 -- |
 -- | This combinator can be used to ensure that paths which originate from user-code
 -- | cannot access data outside a given directory.
-sandbox :: forall a b s. SplitDirOrFileName b => SplitDirOrFile b => Path a Dir Sandboxed -> Path a b s -> Maybe (Path Rel b Sandboxed)
+sandbox :: forall a b s. SplitDirOrFile b => Path a Dir Sandboxed -> Path a b s -> Maybe (Path Rel b Sandboxed)
 sandbox p1 p2 = p2 `relativeTo` p1
 
 mapInsidePath :: forall a a' b s s' f. SplitDirOrFile b => Functor f => Path a b s -> (Path a Dir s -> f (Path a' Dir s')) -> (Path a File s -> f (Path a' File s')) -> f (Path a' b s')
@@ -463,16 +465,16 @@ mapInsidePath p onDir onFile = case dirOrFile p of
   Left p' -> unsafeCoerce $ onDir p'
   Right p' -> unsafeCoerce $ onFile p'
 
-mapInsideName :: forall b. SplitDirOrFileName b => Name b -> (Name Dir -> Name Dir) -> (Name File -> Name File) -> Name b
+mapInsideName :: forall b. SplitDirOrFile b => Name b -> (Name Dir -> Name Dir) -> (Name File -> Name File) -> Name b
 mapInsideName p onDir onFile = case dirOrFileName p of
   Left p' -> unsafeCoerce $ onDir p'
   Right p' -> unsafeCoerce $ onFile p'
 
 -- | Refines path segments but does not change anything else.
-refine :: forall a b s. SplitDirOrFileName b => (Name File -> Name File) -> (Name Dir -> Name Dir) -> Path a b s -> Path a b s
+refine :: forall a b s. SplitDirOrFile b => (Name File -> Name File) -> (Name Dir -> Name Dir) -> Path a b s -> Path a b s
 refine f d = go
   where
-    go :: forall a' b' s'. SplitDirOrFileName b' => Path a' b' s' -> Path a' b' s'
+    go :: forall a' b' s'. SplitDirOrFile b' => Path a' b' s' -> Path a' b' s'
     go Current = Current
     go Root = Root
     go (ParentIn p) = ParentIn (go p)
@@ -545,7 +547,7 @@ parseRelDir = parsePath Just (const Nothing) (const Nothing) (const Nothing) (co
 parseAbsDir :: String -> Maybe (AbsDir Unsandboxed)
 parseAbsDir = parsePath (const Nothing) Just (const Nothing) (const Nothing) (const Nothing)
 
-instance showPath :: SplitDirOrFileName b => Show (Path a b s) where
+instance showPath :: SplitDirOrFile b => Show (Path a b s) where
   show Current = "currentDir"
   show Root = "rootDir"
   show (ParentIn p) = "(parentDir' " <> show p <> ")"
@@ -555,10 +557,10 @@ instance showPath :: SplitDirOrFileName b => Show (Path a b s) where
     Right fileN -> 
     "(" <> show p <> " </> file " <> show fileN <> ")"
 
-instance eqPath :: SplitDirOrFileName b => Eq (Path a b s) where
+instance eqPath :: SplitDirOrFile b => Eq (Path a b s) where
   eq p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
 
-instance ordPath :: SplitDirOrFileName b => Ord (Path a b s) where
+instance ordPath :: SplitDirOrFile b => Ord (Path a b s) where
   compare p1 p2 = go (canonicalize p1) (canonicalize p2)
     where
     go Current Current = EQ

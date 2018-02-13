@@ -7,7 +7,7 @@ import Control.Monad.Eff.Console (CONSOLE, info, infoShow)
 import Data.Either (either)
 import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..), fromJust)
-import Data.Path.Pathy (class SplitDirOrFileName, class SplitDirOrFile, class SplitRelOrAbs, Abs, Dir, File, Path, Rel, Sandboxed, canonicalize, currentDir, depth, dir, dirOrFile, dropExtension, file, parentDir', parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, relOrAbs, renameFile', rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
+import Data.Path.Pathy (class SplitDirOrFile, class SplitRelOrAbs, Abs, Dir, File, Path, Rel, Sandboxed, canonicalize, currentDir, depth, dir, dirOrFile, dropExtension, file, parentDir', parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, relOrAbs, renameFile', rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.Symbol (SProxy(..))
@@ -26,7 +26,7 @@ test name actual expected= do
   infoShow $ "Test: " <> name
   if expected == actual then infoShow $ "Passed: " <> (show expected) else infoShow $ "Failed: Expected " <> (show expected) <> " but found " <> (show actual)
 
-test' :: forall a b s eff. SplitDirOrFileName b => String -> Path a b s -> String -> Eff (console :: CONSOLE | eff) Unit
+test' :: forall a b s eff. SplitDirOrFile b => String -> Path a b s -> String -> Eff (console :: CONSOLE | eff) Unit
 test' n p s = test n (unsafePrintPath p) s
 
 newtype ArbPath = ArbPath (Path Abs File Sandboxed)
