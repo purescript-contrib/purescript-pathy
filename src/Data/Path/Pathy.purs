@@ -64,6 +64,7 @@ module Data.Path.Pathy
   , unsandbox
   , unsafePrintPath
   , unsafePrintPath'
+  , class AppendOutcome
   )
   where
 
@@ -173,7 +174,7 @@ instance absSplitDirOrFile :: SplitDirOrFile File where dirOrFileF = Right
 
 dirOrFile :: forall a b s. SplitDirOrFile b => Path a b s -> AnyPath a s
 dirOrFile p = bimap (un PathFlipped) (un PathFlipped) $ dirOrFileF (PathFlipped p)
-  
+
 dirOrFileName :: forall b. SplitDirOrFile b => Name b -> Either (Name Dir) (Name File)
 dirOrFileName = dirOrFileF
 
@@ -206,11 +207,11 @@ posixEscaper = Escaper $
       s -> s
 
 -- | Creates a path which points to a relative file of the specified name.
-file :: forall s. NonEmptyString -> Path Rel File s
+file :: NonEmptyString -> Path Rel File Sandboxed
 file f = file' (Name f)
 
 -- | Creates a path which points to a relative file of the specified name.
-file' :: forall s. Name File -> Path Rel File s
+file' :: Name File -> Path Rel File Sandboxed
 file' f = In Current f
 
 -- | Retrieves the name of a file path.
@@ -232,7 +233,7 @@ extension (Name f) =
 
 -- | Drops the extension on a file name.
 dropExtension :: Name File -> Maybe (Name File)
-dropExtension (Name n) = 
+dropExtension (Name n) =
   let
     s = NEString.toString n
   in case S.lastIndexOf (S.Pattern ".") s of
@@ -258,11 +259,11 @@ _updateExt ext = case _ of
   Nothing -> Name ext
 
 -- | Creates a path which points to a relative directory of the specified name.
-dir :: forall s. NonEmptyString -> Path Rel Dir s
+dir :: NonEmptyString -> Path Rel Dir Sandboxed
 dir d = dir' (Name d)
 
 -- | Creates a path which points to a relative directory of the specified name.
-dir' :: forall s. Name Dir -> Path Rel Dir s
+dir' :: Name Dir -> Path Rel Dir Sandboxed
 dir' d = In Current d
 
 -- | Retrieves the name of a directory path. Not all paths have such a name,
@@ -276,16 +277,22 @@ pathName :: forall b s. AnyPath b s -> Either (Maybe (Name Dir)) (Name File)
 pathName = bimap dirName fileName
 
 -- | Given a directory path, appends either a file or directory to the path.
-appendPath :: forall a b s. Path a Dir s -> Path Rel b s -> Path a b s
+appendPath :: forall a b is rs s. AppendOutcome is rs s => Path a Dir is -> Path Rel b rs -> Path a b s
 appendPath _ Root = unsafeCrashWith "Imposible as Root can't be Path Rel"
 appendPath Current Current = Current
 appendPath Root Current = Root
-appendPath (ParentIn p) Current = ParentIn (p </> Current)
-appendPath (In p (Name d)) Current = In (p </> Current) (Name d)
+appendPath (ParentIn p) Current = ParentIn (p </> Current :: Path Rel Dir rs)
+appendPath (In p (Name d)) Current = In (p </> Current :: Path Rel Dir rs) (Name d)
 appendPath p1 (ParentIn p2) = ParentIn (p1 </> p2)
 appendPath p1 (In p2 n2) = In (p1 </> p2) n2
 
 infixl 6 appendPath as </>
+
+class AppendOutcome (is :: SandboxedOrNot) (rs :: SandboxedOrNot) (s :: SandboxedOrNot) | is rs -> s
+instance appendSSOutcome :: AppendOutcome Sandboxed Sandboxed Sandboxed
+instance appendUSOutcome :: AppendOutcome Unsandboxed Sandboxed Unsandboxed
+instance appendSUOutcome :: AppendOutcome Sandboxed Unsandboxed Unsandboxed
+instance appendUUOutcome :: AppendOutcome Unsandboxed Unsandboxed Unsandboxed
 
 -- | Sets the extension of the file to the specified extension.
 -- |
@@ -316,13 +323,19 @@ infixl 6 parentAppend as <..>
 peel
   :: forall a b s
    . Path a b s
+  -> Maybe (Tuple (Path a Dir Unsandboxed) (Name b))
+peel = unsafeCoerce unsafePeel
+
+unsafePeel
+  :: forall a b s
+   . Path a b s
   -> Maybe (Tuple (Path a Dir s) (Name b))
-peel Current = Nothing
-peel Root = Nothing
-peel p@(ParentIn _) = case canonicalize' p of
-  Tuple true p' -> peel p'
+unsafePeel Current = Nothing
+unsafePeel Root = Nothing
+unsafePeel p@(ParentIn _) = case canonicalize' p of
+  Tuple true p' -> unsafePeel p'
   _ -> Nothing
-peel (In p n) = Just $ Tuple p n
+unsafePeel (In p n) = Just $ Tuple p n
 
 -- | Returns the depth of the path. This may be negative in some cases, e.g.
 -- | `./../../../` has depth `-3`.
@@ -334,10 +347,7 @@ depth (In p _) = depth p + 1
 
 -- | Unsandboxes any path (whether sandboxed or not).
 unsandbox :: forall a b s. Path a b s -> Path a b Unsandboxed
-unsandbox Current = Current
-unsandbox Root = Root
-unsandbox (ParentIn p) = ParentIn (unsandbox p)
-unsandbox (In p n) = In (unsandbox p) n
+unsandbox = unsafeCoerce
 
 -- | Creates a path that points to the parent directory of the specified path.
 -- | This function always unsandboxes the path.
@@ -348,11 +358,11 @@ unsafeCoerceType :: forall a b b' s. Path a b s -> Path a b' s
 unsafeCoerceType = unsafeCoerce
 
   -- | The "current directory", which can be used to define relatively-located resources.
-currentDir :: forall s. Path Rel Dir s
+currentDir :: Path Rel Dir Sandboxed
 currentDir = Current
 
 -- | The root directory, which can be used to define absolutely-located resources.
-rootDir :: forall s. Path Abs Dir s
+rootDir :: Path Abs Dir Sandboxed
 rootDir = Root
 
 -- | Renames a file path.
@@ -360,7 +370,7 @@ renameFile :: forall a s. (Name File -> Name File) -> Path a File s -> Path a Fi
 renameFile f = un Identity <<< renameFile' (pure <<< f)
 
 renameFile' :: forall f a s. Applicative f => (Name File -> f (Name File)) -> Path a File s -> f (Path a File s)
-renameFile' f (In p f0) = In p <$> f f0 
+renameFile' f (In p f0) = In p <$> f f0
 renameFile' _ p = pure p
 
 -- | Renames a directory path. Note: This is a simple rename of the terminal
@@ -421,7 +431,7 @@ identicalPath p1 p2 = show p1 == show p2
 -- | reference path.
 -- |
 -- | Note there are some cases this function cannot handle.
-relativeTo :: forall a b s s'. SplitDirOrFile b => Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
+relativeTo :: forall a b s s'. SplitDirOrFile b => AppendOutcome s' s' s' => Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
 relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
   where
   relativeTo' :: forall b'. SplitDirOrFile b' => Path a b' s -> Path a Dir s' -> Maybe (Path Rel b' s')
@@ -430,14 +440,14 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
   relativeTo' cp1 cp2
     | identicalPath cp1 cp2 = pure Current
     | otherwise = do
-      Tuple cp1Path name <- peel cp1
+      Tuple cp1Path name <- unsafePeel cp1
       rel <- relativeTo' cp1Path cp2
       pure $ overName name
-        (\dirN -> rel </> In Current dirN)
-        (\fileN -> rel </> In Current fileN)
-  overName 
+        (\dirN -> rel </> In (Current :: Path Rel Dir s') dirN)
+        (\fileN -> rel </> In (Current :: Path Rel Dir s') fileN)
+  overName
     :: forall n a' s''
-    .  SplitDirOrFile n 
+    .  SplitDirOrFile n
     => Name n
     -> (Name Dir -> Path a' Dir s'')
     -> (Name File -> Path a' File s'')
@@ -537,9 +547,9 @@ instance showPath :: SplitDirOrFile b => Show (Path a b s) where
   show Root = "rootDir"
   show (ParentIn p) = "(parentDir " <> show p <> ")"
   show (In p n ) = case dirOrFileName n of
-    Left dirN -> 
+    Left dirN ->
     "(" <> show p <> " </> dir " <> show dirN <> ")"
-    Right fileN -> 
+    Right fileN ->
     "(" <> show p <> " </> file " <> show fileN <> ")"
 
 instance eqPath :: SplitDirOrFile b => Eq (Path a b s) where

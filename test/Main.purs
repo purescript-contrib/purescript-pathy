@@ -45,15 +45,15 @@ instance arbitraryArbPath ∷ QC.Arbitrary ArbPath where
     pure $ ArbPath $ rootDir </> foldl (flip (</>)) filename (dirs ∷ Array (Path Rel Dir Sandboxed))
 
 pathPart ∷ Gen.Gen NonEmptyString
-pathPart = asNonEmptyString <$> Gen.suchThat QC.arbitrary (not <<< Str.null) 
+pathPart = asNonEmptyString <$> Gen.suchThat QC.arbitrary (not <<< Str.null)
   where
   asNonEmptyString :: String -> NonEmptyString
   asNonEmptyString = unsafeCoerce
 
-dirFoo :: forall s. Path Rel Dir s
+dirFoo :: Path Rel Dir Sandboxed
 dirFoo = dir (reflectNonEmpty $ SProxy :: SProxy "foo")
 
-dirBar :: forall s. Path Rel Dir s
+dirBar :: Path Rel Dir Sandboxed
 dirBar = dir (reflectNonEmpty $ SProxy :: SProxy "bar")
 
 main :: QC.QC () Unit
@@ -136,7 +136,7 @@ main = do
 
   test "renameFile - single level deep"
     (renameFile' dropExtension (file (reflectNonEmpty $ SProxy :: SProxy "image.png")))
-   
+
    (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image")
 
   test' "sandbox - sandbox absolute dir to one level higher"
@@ -148,27 +148,27 @@ main = do
 
   test "parseRelFile - image.png"
     (parseRelFile "image.png")
-    (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
+    (Just $ unsandbox $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
 
   test "parseRelFile - ./image.png"
     (parseRelFile "./image.png")
-    (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
+    (Just $ unsandbox $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
 
   test "parseRelFile - foo/image.png"
     (parseRelFile "foo/image.png")
-    (Just $ dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
+    (Just $ unsandbox $ dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
   test "parseRelFile - ../foo/image.png"
     (parseRelFile "../foo/image.png")
-    (Just $ currentDir <..> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
+    (Just $ unsandbox $ currentDir <..> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
   test "parseAbsFile - /image.png"
     (parseAbsFile "/image.png")
-    (Just $ rootDir </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
+    (Just $ unsandbox $ rootDir </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
   test "parseAbsFile - /foo/image.png"
     (parseAbsFile "/foo/image.png")
-    (Just $ rootDir </> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
+    (Just $ unsandbox $ rootDir </> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
   test "parseRelDir - empty string"
     (parseRelDir "")
@@ -181,27 +181,27 @@ main = do
 
   test "parseRelDir - foo/"
     (parseRelDir "foo/")
-    (Just $ dirFoo)
+    (Just $ unsandbox dirFoo)
 
   test "parseRelDir - foo/bar"
     (parseRelDir "foo/bar/")
-    (Just $ dirFoo </> dirBar)
+    (Just $ unsandbox $ dirFoo </> dirBar)
 
   test "parseRelDir - ./foo/bar"
     (parseRelDir "./foo/bar/")
-    (Just $ dirFoo </> dirBar)
+    (Just $ unsandbox $ dirFoo </> dirBar)
 
   test "parseAbsDir - /"
     (parseAbsDir "/")
-    (Just $ rootDir)
+    (Just $ unsandbox rootDir)
 
   test "parseAbsDir - /foo/"
     (parseAbsDir "/foo/")
-    (Just $ rootDir </> dirFoo)
+    (Just $ unsandbox $ rootDir </> dirFoo)
 
   test "parseAbsDir - /foo/bar"
     (parseAbsDir "/foo/bar/")
-    (Just $ rootDir </> dirFoo </> dirBar)
+    (Just $ unsandbox $ rootDir </> dirFoo </> dirBar)
 
   info "Checking typeclass laws..."
   Laws.Data.checkEq (Proxy :: Proxy ArbPath)
