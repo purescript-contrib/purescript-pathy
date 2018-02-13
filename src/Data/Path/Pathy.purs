@@ -38,7 +38,6 @@ module Data.Path.Pathy
   , pathName
   , identicalPath
   , parentDir
-  , parentDir'
   , peel
   , posixEscaper
   , parsePath
@@ -81,7 +80,7 @@ import Data.String as S
 import Data.String.NonEmpty (NonEmptyString, appendString)
 import Data.String.NonEmpty (fromString, toString) as NEString
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..), fst, snd)
+import Data.Tuple (Tuple(..), snd)
 import Partial.Unsafe (unsafeCrashWith)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -130,14 +129,14 @@ runName (Name name) = NEString.toString name
 -- |
 -- | This ADT allows invalid paths (e.g. paths inside files), but there is no
 -- | possible way for such paths to be constructed by user-land code. The only
--- | "invalid path" that may be constructed is using the `parentDir'` function, e.g.
--- | `parentDir' rootDir`, or by parsing an equivalent string such as `/../`,
+-- | "invalid path" that may be constructed is using the `parentDir` function, e.g.
+-- | `parentDir rootDir`, or by parsing an equivalent string such as `/../`,
 -- | but such paths are marked as unsandboxed, and may not be rendered to strings
 -- | until they are first sandboxed to some directory.
 data Path (a :: RelOrAbs) (b :: DirOrFile) (s :: SandboxedOrNot)
   = Current
   | Root
-  | ParentIn (Path a b s)
+  | ParentIn (Path a Dir s)
   | In (Path a Dir s) (Name b)
 
 -- | A type describing a file whose location is given relative to some other,
@@ -277,18 +276,18 @@ pathName :: forall b s. AnyPath b s -> Either (Maybe (Name Dir)) (Name File)
 pathName = bimap dirName fileName
 
 -- | Given a directory path, appends either a file or directory to the path.
-appendPath :: forall a b s. Path a Dir s -> Path Rel b s -> Path a b s
+appendPath :: forall a b s. SplitDirOrFile b => Path a Dir s -> Path Rel b s -> Path a b s
+appendPath _ Root = unsafeCrashWith "Imposible as Root can't be Path Rel"
 appendPath Current Current = Current
 appendPath Root Current = Root
-appendPath (ParentIn p1) Current = ParentIn (p1 </> Current)
-appendPath (In p1 f1) Current = In (p1 </> Current) (unsafeCoerce $ f1)
+-- TODO this shold be correct?
+-- appendPath (ParentIn p) c@Current = ParentIn (p </> c)
+appendPath (ParentIn p) Current = ParentIn (p </> Current)
+appendPath (In p1 (Name f1)) c@Current = case dirOrFile c of
+  Left dir -> In (p1 </> dir) (Name f1)
+  Right _ -> unsafeCrashWith "Imposible"
 appendPath p1 (ParentIn p2) = ParentIn (p1 </> p2)
 appendPath p1 (In p2 f2) = In (p1 </> p2) f2
--- following cases don't make sense but cannot exist
-appendPath Current Root = Current
-appendPath Root Root = Root
-appendPath (ParentIn p1) Root = ParentIn (p1 </> Current)
-appendPath (In p1 f1) Root = In (p1 </> Current) (unsafeCoerce $ f1)
 
 infixl 6 appendPath as </>
 
@@ -307,10 +306,11 @@ infixl 6 setExtension as <.>
 -- | its previous sandbox.
 parentAppend
   :: forall a b s s'
-   . Path a Dir s
+   . SplitDirOrFile b 
+  => Path a Dir s
   -> Path Rel b s'
   -> Path a b Unsandboxed
-parentAppend d p = parentDir' d </> unsandbox p
+parentAppend d p = parentDir d </> unsandbox p
 
 infixl 6 parentAppend as <..>
 
@@ -337,12 +337,6 @@ depth Root = 0
 depth (ParentIn p) = depth p - 1
 depth (In p _) = depth p + 1
 
--- | Attempts to extract out the parent directory of the specified path. If the
--- | function would have to use a relative path in the return value, the function will
--- | instead return `Nothing`.
-parentDir :: forall a b s. Path a b s -> Maybe (Path a Dir s)
-parentDir p = fst <$> peel p
-
 -- | Unsandboxes any path (whether sandboxed or not).
 unsandbox :: forall a b s. Path a b s -> Path a b Unsandboxed
 unsandbox Current = Current
@@ -352,8 +346,8 @@ unsandbox (In p n) = In (unsandbox p) n
 
 -- | Creates a path that points to the parent directory of the specified path.
 -- | This function always unsandboxes the path.
-parentDir' :: forall a b s. Path a b s -> Path a Dir Unsandboxed
-parentDir' = ParentIn <<< unsafeCoerceType <<< unsandbox
+parentDir :: forall a b s. Path a Dir s -> Path a Dir Unsandboxed
+parentDir = ParentIn <<< unsandbox
 
 unsafeCoerceType :: forall a b b' s. Path a b s -> Path a b' s
 unsafeCoerceType = unsafeCoerce
@@ -388,7 +382,7 @@ canonicalize = snd <<< canonicalize'
 canonicalize' :: forall a b s. Path a b s -> Tuple Boolean (Path a b s)
 canonicalize' Current = Tuple false Current
 canonicalize' Root = Tuple false Root
-canonicalize' (ParentIn (In p f)) = Tuple true  (unsafeCoerceType $ snd $ canonicalize' p)
+canonicalize' (ParentIn (In p f)) = Tuple true (unsafeCoerceType $ snd $ canonicalize' p)
 canonicalize' (ParentIn p) = case canonicalize' p of
   Tuple changed p' ->
     let p'' = ParentIn p'
@@ -511,12 +505,12 @@ parsePath rd ad rf af err p =
         false, true -> segsRaw
         false, false -> dropEnd 1 segsRaw
     last = length segsDropped - 1
-    folder :: forall a b s. Int -> Path a b s -> NonEmptyString -> Path a b s
+    folder :: forall a b s. SplitDirOrFile b => Int -> Path a b s -> NonEmptyString -> Path a b s
     folder idx base seg =
       if NEString.toString seg == "." then
         base
       else if NEString.toString seg == ".." then
-        ParentIn base
+        ParentIn $ unsafeCoerceType base
       else In (unsafeCoerceType base) (Name seg)
   in
     case traverse NEString.fromString segsDropped of
@@ -546,7 +540,7 @@ parseAbsDir = parsePath (const Nothing) Just (const Nothing) (const Nothing) (co
 instance showPath :: SplitDirOrFile b => Show (Path a b s) where
   show Current = "currentDir"
   show Root = "rootDir"
-  show (ParentIn p) = "(parentDir' " <> show p <> ")"
+  show (ParentIn p) = "(parentDir " <> show p <> ")"
   show (In p n ) = case dirOrFileName n of
     Left dirN -> 
     "(" <> show p <> " </> dir " <> show dirN <> ")"

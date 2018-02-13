@@ -7,7 +7,7 @@ import Control.Monad.Eff.Console (CONSOLE, info, infoShow)
 import Data.Either (either)
 import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..), fromJust)
-import Data.Path.Pathy (class SplitDirOrFile, class SplitRelOrAbs, Abs, Dir, File, Path, Rel, Sandboxed, canonicalize, currentDir, depth, dir, dirOrFile, dropExtension, file, parentDir', parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, relOrAbs, renameFile', rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
+import Data.Path.Pathy (class SplitDirOrFile, class SplitRelOrAbs, Abs, Dir, File, Path, Rel, Sandboxed, canonicalize, currentDir, depth, dir, dirOrFile, dropExtension, file, parentDir, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, relOrAbs, renameFile', rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.Symbol (SProxy(..))
@@ -79,7 +79,7 @@ main = do
   -- Should not compile:
   -- test
   --   "printPath -- cannot print unsandboxed"
-  --   (printPath (parentDir' currentDir))
+  --   (printPath (parentDir currentDir))
   --   "./../"
 
   test' "(</>) - two directories"
@@ -103,15 +103,15 @@ main = do
     "./image.png"
 
   test' "printPath - ./../"
-    (parentDir' currentDir)
+    (parentDir currentDir)
     "./../"
 
   test' "(</>) - ./../foo/"
-    (parentDir' currentDir </> unsandbox (dirFoo))
+    (parentDir currentDir </> unsandbox (dirFoo))
     "./../foo/"
 
-  test' "parentDir' - ./../foo/../"
-    ((parentDir' currentDir </> unsandbox (dirFoo)) </> (parentDir' currentDir))
+  test' "parentDir - ./../foo/../"
+    ((parentDir currentDir </> unsandbox (dirFoo)) </> (parentDir currentDir))
     "./../foo/../"
 
   test' "(<..>) - ./../"
@@ -127,11 +127,11 @@ main = do
     "./../foo/../"
 
   test' "canonicalize - 1 down, 1 up"
-    (canonicalize $ parentDir' $ dirFoo)
+    (canonicalize $ parentDir $ dirFoo)
     "./"
 
   test' "canonicalize - 2 down, 2 up"
-    (canonicalize (parentDir' (parentDir' (dirFoo </> dirBar))))
+    (canonicalize (parentDir (parentDir (dirFoo </> dirBar))))
     "./"
 
   test "renameFile - single level deep"
@@ -144,7 +144,7 @@ main = do
     "./bar/"
 
   test "depth - negative"
-    (depth (parentDir' $ parentDir' $ parentDir' $ currentDir)) (-3)
+    (depth (parentDir $ parentDir $ parentDir $ currentDir)) (-3)
 
   test "parseRelFile - image.png"
     (parseRelFile "image.png")
