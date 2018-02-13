@@ -281,14 +281,14 @@ appendPath :: forall a b s. Path a Dir s -> Path Rel b s -> Path a b s
 appendPath Current Current = Current
 appendPath Root Current = Root
 appendPath (ParentIn p1) Current = ParentIn (p1 </> Current)
-appendPath (In p1 f1) Current = In (unsafeCoerce $ p1 </> Current) (unsafeCoerce f1)
+appendPath (In p1 f1) Current = In (p1 </> Current) (unsafeCoerce $ f1)
 appendPath p1 (ParentIn p2) = ParentIn (p1 </> p2)
 appendPath p1 (In p2 f2) = In (p1 </> p2) f2
 -- following cases don't make sense but cannot exist
 appendPath Current Root = Current
 appendPath Root Root = Root
 appendPath (ParentIn p1) Root = ParentIn (p1 </> Current)
-appendPath (In p1 f1) Root = In (unsafeCoerce $ p1 </> Current) (unsafeCoerce $f1)
+appendPath (In p1 f1) Root = In (p1 </> Current) (unsafeCoerce $ f1)
 
 infixl 6 appendPath as </>
 
@@ -442,7 +442,7 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
     | identicalPath cp1 cp2 = pure Current
     | otherwise = do
       Tuple cp1Path name <- peel cp1
-          rel <- relativeTo' cp1Path cp2
+      rel <- relativeTo' cp1Path cp2
       pure $ overName name
         (\dirN -> rel </> In Current dirN)
         (\fileN -> rel </> In Current fileN)
