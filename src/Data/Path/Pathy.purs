@@ -276,18 +276,14 @@ pathName :: forall b s. AnyPath b s -> Either (Maybe (Name Dir)) (Name File)
 pathName = bimap dirName fileName
 
 -- | Given a directory path, appends either a file or directory to the path.
-appendPath :: forall a b s. SplitDirOrFile b => Path a Dir s -> Path Rel b s -> Path a b s
+appendPath :: forall a b s. Path a Dir s -> Path Rel b s -> Path a b s
 appendPath _ Root = unsafeCrashWith "Imposible as Root can't be Path Rel"
 appendPath Current Current = Current
 appendPath Root Current = Root
--- TODO this shold be correct?
--- appendPath (ParentIn p) c@Current = ParentIn (p </> c)
 appendPath (ParentIn p) Current = ParentIn (p </> Current)
-appendPath (In p1 (Name f1)) c@Current = case dirOrFile c of
-  Left dir -> In (p1 </> dir) (Name f1)
-  Right _ -> unsafeCrashWith "Imposible"
+appendPath (In p (Name d)) Current = In (p </> Current) (Name d)
 appendPath p1 (ParentIn p2) = ParentIn (p1 </> p2)
-appendPath p1 (In p2 f2) = In (p1 </> p2) f2
+appendPath p1 (In p2 n2) = In (p1 </> p2) n2
 
 infixl 6 appendPath as </>
 
@@ -306,8 +302,7 @@ infixl 6 setExtension as <.>
 -- | its previous sandbox.
 parentAppend
   :: forall a b s s'
-   . SplitDirOrFile b 
-  => Path a Dir s
+   . Path a Dir s
   -> Path Rel b s'
   -> Path a b Unsandboxed
 parentAppend d p = parentDir d </> unsandbox p
@@ -346,7 +341,7 @@ unsandbox (In p n) = In (unsandbox p) n
 
 -- | Creates a path that points to the parent directory of the specified path.
 -- | This function always unsandboxes the path.
-parentDir :: forall a b s. Path a Dir s -> Path a Dir Unsandboxed
+parentDir :: forall a s. Path a Dir s -> Path a Dir Unsandboxed
 parentDir = ParentIn <<< unsandbox
 
 unsafeCoerceType :: forall a b b' s. Path a b s -> Path a b' s
