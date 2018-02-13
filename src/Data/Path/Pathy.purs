@@ -37,12 +37,6 @@ module Data.Path.Pathy
   , fileName
   , pathName
   , identicalPath
-  , isAbsolute
-  , isRelative
-  , maybeAbs
-  , maybeDir
-  , maybeFile
-  , maybeRel
   , parentDir
   , parentDir'
   , peel
@@ -54,6 +48,10 @@ module Data.Path.Pathy
   , parseRelFile
   , printPath
   , printPath'
+  , class SplitRelOrAbs
+  , relOrAbs
+  , class SplitDirOrFile
+  , dirOrFile
   , refine
   , relativeTo
   , renameDir
@@ -87,7 +85,7 @@ import Unsafe.Coerce (unsafeCoerce)
 
 foreign import kind RelOrAbs
 
-foreign import kind FileOrDir
+foreign import kind DirOrFile
 
 foreign import kind SandboxedOrNot
 
@@ -98,10 +96,10 @@ foreign import data Rel :: RelOrAbs
 foreign import data Abs :: RelOrAbs
 
 -- | The (phantom) type of files.
-foreign import data File :: FileOrDir
+foreign import data File :: DirOrFile
 
 -- | The (phantom) type of directories.
-foreign import data Dir :: FileOrDir
+foreign import data Dir :: DirOrFile
 
 -- | The (phantom) type of unsandboxed paths.
 foreign import data Unsandboxed :: SandboxedOrNot
@@ -110,7 +108,7 @@ foreign import data Unsandboxed :: SandboxedOrNot
 foreign import data Sandboxed :: SandboxedOrNot
 
 -- | A newtype around a file name.
-newtype Name (n :: FileOrDir) = Name NonEmptyString
+newtype Name (n :: DirOrFile) = Name NonEmptyString
 
 -- | Unwraps the `Name` newtype.
 runName :: forall a. Name a -> String
@@ -134,7 +132,7 @@ runName (Name name) = NEString.toString name
 -- | `parentDir' rootDir`, or by parsing an equivalent string such as `/../`,
 -- | but such paths are marked as unsandboxed, and may not be rendered to strings
 -- | until they are first sandboxed to some directory.
-data Path (a :: RelOrAbs) (b :: FileOrDir) (s :: SandboxedOrNot)
+data Path (a :: RelOrAbs) (b :: DirOrFile) (s :: SandboxedOrNot)
   = Current
   | Root
   | ParentIn (Path a b s)
@@ -163,6 +161,18 @@ type RelPath s = AnyPath Rel s
 
 -- | A type describing an absolute file or directory path.
 type AbsPath s = AnyPath Abs s
+
+class SplitDirOrFile (b :: DirOrFile) where
+  dirOrFile :: forall a s. Path a b s -> AnyPath a s
+
+instance relSplitDirOrFile :: SplitDirOrFile Dir where dirOrFile = Left
+instance absSplitDirOrFile :: SplitDirOrFile File where dirOrFile = Right
+
+class SplitRelOrAbs (a :: RelOrAbs) where
+  relOrAbs :: forall b s. Path a b s -> Either (Path Rel b s) (Path Abs b s)
+
+instance relSplitRelOrAbs :: SplitRelOrAbs Rel where relOrAbs = Left
+instance absSplitRelOrAbs :: SplitRelOrAbs Abs where relOrAbs = Right
 
 -- | Escapers encode segments or characters which have reserved meaning.
 newtype Escaper = Escaper (String -> String)
@@ -297,18 +307,6 @@ parentAppend d p = parentDir' d </> unsandbox p
 
 infixl 6 parentAppend as <..>
 
--- | Determines if this path is absolutely located.
-isAbsolute :: forall a b s. Path a b s -> Boolean
-isAbsolute Current = false
-isAbsolute Root = true
-isAbsolute (ParentIn p) = isAbsolute p
-isAbsolute (FileIn p _) = isAbsolute p
-isAbsolute (DirIn p _) = isAbsolute p
-
--- | Determines if this path is relatively located.
-isRelative :: forall a b s. Path a b s -> Boolean
-isRelative = not <<< isAbsolute
-
 -- | Peels off the last directory and the terminal file or directory name
 -- | from the path. Returns `Nothing` if there is no such pair (for example,
 -- | if the last path segment is root directory, current directory, or parent
@@ -324,38 +322,6 @@ peel p@(ParentIn _) = case canonicalize' p of
   _ -> Nothing
 peel (DirIn p (Name d)) = Just $ Tuple p (Name d)
 peel (FileIn p (Name f)) = Just $ Tuple p (Name f)
-
--- | Determines if the path refers to a directory.
-maybeDir :: forall a b s. Path a b s -> Maybe (Path a Dir s)
-maybeDir Current = Just Current
-maybeDir Root = Just Root
-maybeDir (ParentIn p) = Just $ ParentIn (unsafeCoerceType p)
-maybeDir (FileIn _ _) = Nothing
-maybeDir (DirIn p d) = Just $ DirIn p d
-
--- | Determines if the path refers to a file.
-maybeFile :: forall a b s. Path a b s -> Maybe (Path a File s)
-maybeFile Current = Nothing
-maybeFile Root = Nothing
-maybeFile (ParentIn _) = Nothing
-maybeFile (FileIn p f) = (</>) <$> maybeDir p <*> Just (file' f)
-maybeFile (DirIn _ _) = Nothing
-
--- | Determines if the path is relatively specified.
-maybeRel :: forall a b s. Path a b s -> Maybe (Path Rel b s)
-maybeRel Current = Just Current
-maybeRel Root = Nothing
-maybeRel (ParentIn p) = ParentIn <$> maybeRel p
-maybeRel (FileIn p f) = flip FileIn f <$> maybeRel p
-maybeRel (DirIn p d) = flip DirIn  d <$> maybeRel p
-
--- | Determines if the path is absolutely specified.
-maybeAbs :: forall a b s. Path a b s -> Maybe (Path Rel b s)
-maybeAbs Current = Nothing
-maybeAbs Root = Just Root
-maybeAbs (ParentIn p) = ParentIn <$> maybeAbs p
-maybeAbs (FileIn p f) = flip FileIn f <$> maybeAbs p
-maybeAbs (DirIn p d) = flip DirIn  d <$> maybeAbs p
 
 -- | Returns the depth of the path. This may be negative in some cases, e.g.
 -- | `./../../../` has depth `-3`.

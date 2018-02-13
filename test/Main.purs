@@ -4,19 +4,20 @@ import Prelude
 
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, info, infoShow)
+import Data.Either (either)
 import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..), fromJust)
-import Data.Symbol (SProxy(..))
-import Data.Symbol (class IsSymbol, reflectSymbol) as Symbol
-import Type.Data.Boolean (False) as Symbol
-import Type.Data.Symbol (class Equals) as Symbol
-import Data.Path.Pathy (Abs, Dir, File, Path, Rel, Sandboxed, canonicalize, currentDir, depth, dir, dropExtension, file, parentDir', parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, renameFile', rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
+import Data.Path.Pathy (class SplitDirOrFile, class SplitRelOrAbs, Abs, Dir, File, Path, Rel, Sandboxed, canonicalize, currentDir, depth, dir, dirOrFile, dropExtension, file, parentDir', parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, relOrAbs, renameFile', rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
+import Data.Symbol (SProxy(..))
+import Data.Symbol (class IsSymbol, reflectSymbol) as Symbol
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
 import Test.QuickCheck.Laws.Data as Laws.Data
+import Type.Data.Boolean (False) as Symbol
+import Type.Data.Symbol (class Equals) as Symbol
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -216,3 +217,28 @@ instance isSymbolNonEmpty :: (Symbol.IsSymbol s, Symbol.Equals s "" Symbol.False
     where
     asNonEmpty :: String -> NonEmptyString
     asNonEmpty = unsafeCoerce
+
+
+-- | Determines if the path refers to a directory.
+maybeDir :: forall a b s. SplitDirOrFile b => Path a b s -> Maybe (Path a Dir s)
+maybeDir p = either Just (const Nothing) (dirOrFile p)
+
+-- | Determines if the path refers to a file.
+maybeFile :: forall a b s. SplitDirOrFile b => Path a b s -> Maybe (Path a File s)
+maybeFile p = either (const Nothing) Just (dirOrFile p)
+
+-- | Determines if the path is relatively specified.
+maybeRel :: forall a b s. SplitRelOrAbs a => Path a b s -> Maybe (Path Rel b s)
+maybeRel p = either Just (const Nothing) (relOrAbs p)
+
+-- | Determines if the path is absolutely specified.
+maybeAbs :: forall a b s. SplitRelOrAbs a => Path a b s -> Maybe (Path Abs b s)
+maybeAbs p = either (const Nothing) Just (relOrAbs p)
+
+-- | Determines if this path is absolutely located.
+isAbsolute :: forall a b s. SplitRelOrAbs a => Path a b s -> Boolean
+isAbsolute p = either (const false) (const true) (relOrAbs p)
+
+-- | Determines if this path is relatively located.
+isRelative :: forall a b s. SplitRelOrAbs a => Path a b s -> Boolean
+isRelative p= either (const true) (const false) (relOrAbs p)
