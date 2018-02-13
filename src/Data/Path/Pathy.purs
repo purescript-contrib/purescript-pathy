@@ -70,7 +70,8 @@ import Prelude
 
 import Data.Array (drop, dropEnd, filter, length)
 import Data.Bifunctor (bimap)
-import Data.Either (Either(..), either)
+import Data.Bitraversable (bitraverse)
+import Data.Either (Either(..))
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..))
@@ -431,40 +432,30 @@ identicalPath p1 p2 = show p1 == show p2
 -- | reference path.
 -- |
 -- | Note there are some cases this function cannot handle.
-relativeTo :: forall a b s s'. Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
+relativeTo :: forall a b s s'. SplitDirOrFile b => Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
 relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
   where
-  relativeTo' :: forall b'. Path a b' s -> Path a Dir s' -> Maybe (Path Rel b' s')
+  relativeTo' :: forall b'. SplitDirOrFile b' => Path a b' s -> Path a Dir s' -> Maybe (Path Rel b' s')
   relativeTo' Root Root = pure Current
   relativeTo' Current Current = pure Current
   relativeTo' cp1 cp2
     | identicalPath cp1 cp2 = pure Current
     | otherwise = do
-      Tuple cp1Parent cp1Top <- peel' cp1
-      rel <- relativeTo' cp1Parent cp2
-      pure $ rel </> either (DirIn Current) (FileIn Current) cp1Top
-
-  -- Specialised version of `peel` which is not using canonicalaise for 
-  -- `ParentIn _` as it's input is canonicalized already.
-  -- it also returns Either of Dir and File Names so we can 
-  -- decide if DirIn or FileIn is needed.
-  peel'
-    :: forall a' b' s''
-    .  Path a' b' s''
-    -> Maybe (Tuple (Path a' Dir s'') (Either (Name Dir) (Name File)))
-  peel' Current = Nothing
-  peel' Root = Nothing
-  peel' (ParentIn _) = Nothing
-  peel' (DirIn p (Name d)) = Just $ Tuple p (Left $ Name d)
-  peel' (FileIn p (Name f)) = Just $ Tuple p (Right $ Name f)
-
+      peeled <- bitraverse peel peel (dirOrFile cp1)
+      case peeled of
+        Left (Tuple cp1Parent cp1Top) -> do
+          rel <- relativeTo' cp1Parent cp2
+          pure $ rel </> DirIn Current cp1Top
+        Right (Tuple cp1Parent cp1Top) -> do
+          rel <- relativeTo' cp1Parent cp2
+          pure $ rel </> FileIn Current cp1Top
 -- | Attempts to sandbox a path relative to some directory. If successful, the sandboxed
 -- | directory will be returned relative to the sandbox directory (although this can easily
 -- | be converted into an absolute path using `</>`).
 -- |
 -- | This combinator can be used to ensure that paths which originate from user-code
 -- | cannot access data outside a given directory.
-sandbox :: forall a b s. Path a Dir Sandboxed -> Path a b s -> Maybe (Path Rel b Sandboxed)
+sandbox :: forall a b s. SplitDirOrFile b => Path a Dir Sandboxed -> Path a b s -> Maybe (Path Rel b Sandboxed)
 sandbox p1 p2 = p2 `relativeTo` p1
 
 -- | Refines path segments but does not change anything else.
