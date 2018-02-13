@@ -441,15 +441,21 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
   relativeTo' cp1 cp2
     | identicalPath cp1 cp2 = pure Current
     | otherwise = do
-      mapInsidePath cp1
-        (\dirP -> do 
-          Tuple cp1Path dirN <- peel dirP
+      Tuple cp1Path name <- peel cp1
           rel <- relativeTo' cp1Path cp2
-          pure $ rel </> In Current dirN)
-        (\fileP -> do 
-          Tuple cp1Path fileN <- peel fileP
-          rel <- relativeTo' cp1Path cp2
-          pure $ rel </> In Current fileN)
+      pure $ overName name
+        (\dirN -> rel </> In Current dirN)
+        (\fileN -> rel </> In Current fileN)
+  overName 
+    :: forall n a' s''
+    .  SplitDirOrFile n 
+    => Name n
+    -> (Name Dir -> Path a' Dir s'')
+    -> (Name File -> Path a' File s'')
+    -> Path a' n s''
+  overName p onDir onFile = case dirOrFileName p of
+    Left p' -> unsafeCoerce $ onDir p'
+    Right p' -> unsafeCoerce $ onFile p'
 
 -- | Attempts to sandbox a path relative to some directory. If successful, the sandboxed
 -- | directory will be returned relative to the sandbox directory (although this can easily
@@ -459,16 +465,6 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
 -- | cannot access data outside a given directory.
 sandbox :: forall a b s. SplitDirOrFile b => Path a Dir Sandboxed -> Path a b s -> Maybe (Path Rel b Sandboxed)
 sandbox p1 p2 = p2 `relativeTo` p1
-
-mapInsidePath :: forall a a' b s s' f. SplitDirOrFile b => Functor f => Path a b s -> (Path a Dir s -> f (Path a' Dir s')) -> (Path a File s -> f (Path a' File s')) -> f (Path a' b s')
-mapInsidePath p onDir onFile = case dirOrFile p of
-  Left p' -> unsafeCoerce $ onDir p'
-  Right p' -> unsafeCoerce $ onFile p'
-
-mapInsideName :: forall b. SplitDirOrFile b => Name b -> (Name Dir -> Name Dir) -> (Name File -> Name File) -> Name b
-mapInsideName p onDir onFile = case dirOrFileName p of
-  Left p' -> unsafeCoerce $ onDir p'
-  Right p' -> unsafeCoerce $ onFile p'
 
 -- | Refines path segments but does not change anything else.
 refine :: forall a b s. SplitDirOrFile b => (Name File -> Name File) -> (Name Dir -> Name Dir) -> Path a b s -> Path a b s
