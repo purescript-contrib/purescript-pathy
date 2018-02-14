@@ -591,8 +591,8 @@ viewRelDir :: Path Rel Dir Sandboxed -> ViewRelDir
 viewRelDir = case _ of
   Current -> ViewRelDirCurrent
   Root -> unsafeCrashWith "Imposible, Root can't be in Rel path"
-  ParentIn dir -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
-  In dir n -> ViewRelDirIn (viewRelDir dir) n
+  ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
+  In d n -> ViewRelDirIn (viewRelDir d) n
 
 
 data ViewAbsDir
@@ -603,8 +603,8 @@ viewAbsDir :: Path Abs Dir Sandboxed -> ViewAbsDir
 viewAbsDir = case _ of
   Current -> unsafeCrashWith "Imposible, Current can't be in Abs path"
   Root -> ViewAbsDirRoot
-  ParentIn dir -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
-  In dir n -> ViewAbsDirIn (viewAbsDir dir) n
+  ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
+  In d n -> ViewAbsDirIn (viewAbsDir d) n
 
 
 data ViewAbsFile
@@ -614,8 +614,8 @@ viewAbsFile :: Path Abs File Sandboxed -> ViewAbsFile
 viewAbsFile = case _ of
   Current -> unsafeCrashWith "Imposibl, Current can't be in File path"
   Root -> unsafeCrashWith "Imposible, Root can't be in File path"
-  ParentIn dir -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
-  In dir n -> ViewAbsFileIn (viewAbsDir dir) n
+  ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
+  In d n -> ViewAbsFileIn (viewAbsDir d) n
 
 
 data ViewRelFile
@@ -625,5 +625,5 @@ viewRelFile :: Path Rel File Sandboxed -> ViewRelFile
 viewRelFile = case _ of
   Current -> unsafeCrashWith "Imposibl, Current can't be in File path"
   Root -> unsafeCrashWith "Imposible, Root can't be in File path"
-  ParentIn dir -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
-  In dir n -> ViewRelFileIn (viewRelDir dir) n
+  ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
+  In d n -> ViewRelFileIn (viewRelDir d) n
