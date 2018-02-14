@@ -65,6 +65,14 @@ module Data.Path.Pathy
   , unsafePrintPath
   , unsafePrintPath'
   , class AppendOutcome
+  , ViewRelDir(..)
+  , viewRelDir
+  , ViewAbsDir(..)
+  , viewAbsDir
+  , ViewAbsFile(..)
+  , viewAbsFile
+  , ViewRelFile(..)
+  , viewRelFile
   )
   where
 
@@ -547,10 +555,10 @@ instance showPath :: SplitDirOrFile b => Show (Path a b s) where
   show Root = "rootDir"
   show (ParentIn p) = "(parentDir " <> show p <> ")"
   show (In p n ) = case dirOrFileName n of
-    Left dirN ->
-    "(" <> show p <> " </> dir " <> show dirN <> ")"
-    Right fileN ->
-    "(" <> show p <> " </> file " <> show fileN <> ")"
+    Left dirN -> 
+      "(" <> show p <> " </> dir " <> show dirN <> ")"
+    Right fileN -> 
+      "(" <> show p <> " </> file " <> show fileN <> ")"
 
 instance eqPath :: SplitDirOrFile b => Eq (Path a b s) where
   eq p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
@@ -574,3 +582,48 @@ instance showName :: Show (Name a) where
 
 derive instance eqName :: Eq (Name a)
 derive instance ordName :: Ord (Name a)
+
+data ViewRelDir
+  = ViewRelDirCurrent
+  | ViewRelDirIn ViewRelDir (Name Dir)
+
+viewRelDir :: Path Rel Dir Sandboxed -> ViewRelDir
+viewRelDir = case _ of
+  Current -> ViewRelDirCurrent
+  Root -> unsafeCrashWith "Imposible, Root can't be in Rel path"
+  ParentIn dir -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
+  In dir n -> ViewRelDirIn (viewRelDir dir) n
+
+
+data ViewAbsDir
+  = ViewAbsDirRoot
+  | ViewAbsDirIn ViewAbsDir (Name Dir)
+
+viewAbsDir :: Path Abs Dir Sandboxed -> ViewAbsDir
+viewAbsDir = case _ of
+  Current -> unsafeCrashWith "Imposible, Current can't be in Abs path"
+  Root -> ViewAbsDirRoot
+  ParentIn dir -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
+  In dir n -> ViewAbsDirIn (viewAbsDir dir) n
+
+
+data ViewAbsFile
+  = ViewAbsFileIn ViewAbsDir (Name File)
+
+viewAbsFile :: Path Abs File Sandboxed -> ViewAbsFile
+viewAbsFile = case _ of
+  Current -> unsafeCrashWith "Imposibl, Current can't be in File path"
+  Root -> unsafeCrashWith "Imposible, Root can't be in File path"
+  ParentIn dir -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
+  In dir n -> ViewAbsFileIn (viewAbsDir dir) n
+
+
+data ViewRelFile
+  = ViewRelFileIn ViewRelDir (Name File)
+
+viewRelFile :: Path Rel File Sandboxed -> ViewRelFile
+viewRelFile = case _ of
+  Current -> unsafeCrashWith "Imposibl, Current can't be in File path"
+  Root -> unsafeCrashWith "Imposible, Root can't be in File path"
+  ParentIn dir -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
+  In dir n -> ViewRelFileIn (viewRelDir dir) n
