@@ -7,7 +7,8 @@ import Control.Monad.Eff.Console (CONSOLE, info, infoShow)
 import Data.Either (either)
 import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..), fromJust)
-import Data.Path.Pathy (class SplitDirOrFile, class SplitRelOrAbs, Abs, Dir, File, Path, Rel, Sandboxed, canonicalize, currentDir, depth, dir, dirOrFile, dropExtension, file, parentDir, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, relOrAbs, renameFile', rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
+import Data.Path.Pathy (class SplitDirOrFile, class SplitRelOrAbs, Abs, Dir, File, Path, Rel, Sandboxed, Unsandboxed, canonicalize, currentDir, depth, dir, dirOrFile, dropExtension, file, parentDir, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, relOrAbs, renameFile', rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
+import Data.Path.Pathy.Gen as PG
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.Symbol (SProxy(..))
@@ -56,8 +57,37 @@ dirFoo = dir (reflectNonEmpty $ SProxy :: SProxy "foo")
 dirBar :: Path Rel Dir Sandboxed
 dirBar = dir (reflectNonEmpty $ SProxy :: SProxy "bar")
 
+parsePrintCheck :: forall a b. SplitDirOrFile b => Path a b Sandboxed -> Maybe (Path a b Unsandboxed) -> QC.Result
+parsePrintCheck input parsed =
+  if parsed == Just (unsandbox input)
+    then QC.Success
+    else QC.Failed
+      $ "`parse (print path) != Just path` for path: `" <> show input <> "` which was re-parsed into `" <> show parsed <> "`"
+      <> "\n\tPrinted path: " <> show (unsafePrintPath input)
+      <> "\n\tPrinted path': `" <> show (map unsafePrintPath parsed) <> "`"
+
+parsePrintAbsDirPath :: Gen.Gen QC.Result
+parsePrintAbsDirPath = PG.genAbsDirPath <#> \path ->
+  parsePrintCheck path (parseAbsDir $ unsafePrintPath path)
+
+parsePrintAbsFilePath :: Gen.Gen QC.Result
+parsePrintAbsFilePath = PG.genAbsFilePath <#> \path ->
+  parsePrintCheck path (parseAbsFile $ unsafePrintPath path)
+
+parsePrintRelDirPath :: Gen.Gen QC.Result
+parsePrintRelDirPath = PG.genRelDirPath <#> \path ->
+  parsePrintCheck path (parseRelDir $ unsafePrintPath path)
+
+parsePrintRelFilePath :: Gen.Gen QC.Result
+parsePrintRelFilePath = PG.genRelFilePath <#> \path ->
+  parsePrintCheck path (parseRelFile $ unsafePrintPath path)
+
 main :: QC.QC () Unit
 main = do
+  info "checking `parse <<< print` for `AbsDir`" *> QC.quickCheck parsePrintAbsDirPath
+  info "checking `parse <<< print` for `AbsFile`" *> QC.quickCheck parsePrintAbsFilePath
+  info "checking `parse <<< print` for `RelDir`" *> QC.quickCheck parsePrintRelDirPath
+  info "checking `parse <<< print` for `RelFile`" *> QC.quickCheck parsePrintRelFilePath
   -- Should not compile:
   -- test
   --   "(</>) - file in dir"
