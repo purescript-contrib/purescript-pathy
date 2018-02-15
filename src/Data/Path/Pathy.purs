@@ -73,6 +73,8 @@ module Data.Path.Pathy
   , viewAbsFile
   , ViewRelFile(..)
   , viewRelFile
+  , relativify
+  , absolutify
   )
   where
 
@@ -119,6 +121,7 @@ foreign import data Sandboxed :: SandboxedOrNot
 
 -- | A newtype around a file name.
 newtype Name (n :: DirOrFile) = Name NonEmptyString
+derive instance newtypeName :: Newtype (Name n) _
 
 -- | Unwraps the `Name` newtype.
 runName :: forall a. Name a -> String
@@ -216,11 +219,11 @@ posixEscaper = Escaper $
 
 -- | Creates a path which points to a relative file of the specified name.
 file :: NonEmptyString -> Path Rel File Sandboxed
-file f = file' (Name f)
+file = file' <<< Name
 
 -- | Creates a path which points to a relative file of the specified name.
 file' :: Name File -> Path Rel File Sandboxed
-file' f = In Current f
+file' = In Current
 
 -- | Retrieves the name of a file path.
 fileName :: forall a s. Path a File s -> Name File
@@ -268,11 +271,11 @@ _updateExt ext = case _ of
 
 -- | Creates a path which points to a relative directory of the specified name.
 dir :: NonEmptyString -> Path Rel Dir Sandboxed
-dir d = dir' (Name d)
+dir = dir' <<< Name
 
 -- | Creates a path which points to a relative directory of the specified name.
 dir' :: Name Dir -> Path Rel Dir Sandboxed
-dir' d = In Current d
+dir' = In Current
 
 -- | Retrieves the name of a directory path. Not all paths have such a name,
 -- | for example, the root or current directory.
@@ -434,6 +437,37 @@ printPath' = unsafePrintPath'
 identicalPath :: forall a a' b b' s s'. SplitDirOrFile b => SplitDirOrFile b' => Path a b s -> Path a' b' s' -> Boolean
 identicalPath p1 p2 = show p1 == show p2
 
+relativify :: forall a. SplitDirOrFile a => Path Abs a Sandboxed -> Path Rel a Sandboxed
+relativify p = case dirOrFile p of
+  Left d -> 
+    joinSplit $ asRel $ viewAbsDir d
+  Right f -> 
+    let (ViewAbsFileIn d name) = viewAbsFile f
+    in joinSplit $ asRel d </> file' name
+  where
+  joinSplit :: forall x. Path Rel x Sandboxed -> Path Rel a Sandboxed
+  joinSplit = unsafeCoerce
+  asRel :: ViewAbsDir -> Path Rel Dir Sandboxed
+  asRel = case _ of
+    ViewAbsDirRoot -> currentDir
+    ViewAbsDirIn d n -> asRel d </> dir' n
+
+absolutify :: forall a. SplitDirOrFile a => Path Rel a Sandboxed -> Path Abs a Sandboxed
+absolutify p = case dirOrFile p of
+  Left d -> 
+    joinSplit $ asAbs $ viewRelDir d
+  Right f -> 
+    let (ViewRelFileIn d name) = viewRelFile f
+    in joinSplit $ asAbs d </> file' name
+  where
+  joinSplit :: forall x. Path Abs x Sandboxed -> Path Abs a Sandboxed
+  joinSplit = unsafeCoerce
+  asAbs :: ViewRelDir -> Path Abs Dir Sandboxed
+  asAbs = case _ of
+    ViewRelDirCurrent -> rootDir
+    ViewRelDirIn d n -> asAbs d </> dir' n
+
+
 -- | Makes one path relative to another reference path, if possible, otherwise
 -- | returns `Nothing`. The returned path inherits the sandbox settings of the
 -- | reference path.
@@ -450,19 +484,12 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
     | otherwise = do
       Tuple cp1Path name <- unsafePeel cp1
       rel <- relativeTo' cp1Path cp2
-      pure $ overName name
-        (\dirN -> rel </> In (Current :: Path Rel Dir s') dirN)
-        (\fileN -> rel </> In (Current :: Path Rel Dir s') fileN)
-  overName
-    :: forall n a' s''
-    .  SplitDirOrFile n
-    => Name n
-    -> (Name Dir -> Path a' Dir s'')
-    -> (Name File -> Path a' File s'')
-    -> Path a' n s''
-  overName p onDir onFile = case dirOrFileName p of
-    Left p' -> unsafeCoerce $ onDir p'
-    Right p' -> unsafeCoerce $ onFile p'
+      pure case dirOrFileName name of
+        Left dirN -> joinSplit $ rel </> In (Current :: Path Rel Dir s') dirN
+        Right fileN -> joinSplit $ rel </> In (Current :: Path Rel Dir s') fileN
+    where
+    joinSplit :: forall a_ b_ s_. Path a_ b_ s_ -> Path a_ b' s_
+    joinSplit = unsafeCoerce
 
 -- | Attempts to sandbox a path relative to some directory. If successful, the sandboxed
 -- | directory will be returned relative to the sandbox directory (although this can easily
