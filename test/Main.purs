@@ -25,9 +25,11 @@ import Unsafe.Coerce (unsafeCoerce)
 test :: forall a eff. Show a => Eq a => String -> a -> a -> Eff (console :: CONSOLE | eff) Unit
 test name actual expected= do
   infoShow $ "Test: " <> name
-  if expected == actual then infoShow $ "Passed: " <> (show expected) else infoShow $ "Failed: Expected " <> (show expected) <> " but found " <> (show actual)
+  if expected == actual
+    then infoShow $ "Passed: " <> (show expected)
+    else infoShow $ "Failed: Expected " <> (show expected) <> " but found " <> (show actual)
 
-test' :: forall a b s eff. SplitDirOrFile b => String -> Path a b s -> String -> Eff (console :: CONSOLE | eff) Unit
+test' :: forall a b s eff. SplitRelOrAbs a => SplitDirOrFile b => String -> Path a b s -> String -> Eff (console :: CONSOLE | eff) Unit
 test' n p s = test n (unsafePrintPath p) s
 
 newtype ArbPath = ArbPath (Path Abs File Sandboxed)
@@ -57,7 +59,7 @@ dirFoo = dir (reflectNonEmpty $ SProxy :: SProxy "foo")
 dirBar :: Path Rel Dir Sandboxed
 dirBar = dir (reflectNonEmpty $ SProxy :: SProxy "bar")
 
-parsePrintCheck :: forall a b. SplitDirOrFile b => Path a b Sandboxed -> Maybe (Path a b Unsandboxed) -> QC.Result
+parsePrintCheck :: forall a b. SplitRelOrAbs a => SplitDirOrFile b => Path a b Sandboxed -> Maybe (Path a b Unsandboxed) -> QC.Result
 parsePrintCheck input parsed =
   if parsed == Just (unsandbox input)
     then QC.Success

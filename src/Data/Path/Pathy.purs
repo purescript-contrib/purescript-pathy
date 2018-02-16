@@ -146,8 +146,7 @@ runName (Name name) = NEString.toString name
 -- | but such paths are marked as unsandboxed, and may not be rendered to strings
 -- | until they are first sandboxed to some directory.
 data Path (a :: RelOrAbs) (b :: DirOrFile) (s :: SandboxedOrNot)
-  = Current
-  | Root
+  = Init
   | ParentIn (Path a Dir s)
   | In (Path a Dir s) (Name b)
 
@@ -223,7 +222,7 @@ file = file' <<< Name
 
 -- | Creates a path which points to a relative file of the specified name.
 file' :: Name File -> Path Rel File Sandboxed
-file' = In Current
+file' = In Init
 
 -- | Retrieves the name of a file path.
 fileName :: forall a s. Path a File s -> Name File
@@ -275,7 +274,7 @@ dir = dir' <<< Name
 
 -- | Creates a path which points to a relative directory of the specified name.
 dir' :: Name Dir -> Path Rel Dir Sandboxed
-dir' = In Current
+dir' = In Init
 
 -- | Retrieves the name of a directory path. Not all paths have such a name,
 -- | for example, the root or current directory.
@@ -289,11 +288,9 @@ pathName = bimap dirName fileName
 
 -- | Given a directory path, appends either a file or directory to the path.
 appendPath :: forall a b is rs s. AppendOutcome is rs s => Path a Dir is -> Path Rel b rs -> Path a b s
-appendPath _ Root = unsafeCrashWith "Imposible as Root can't be Path Rel"
-appendPath Current Current = Current
-appendPath Root Current = Root
-appendPath (ParentIn p) Current = ParentIn (p </> Current :: Path Rel Dir rs)
-appendPath (In p (Name d)) Current = In (p </> Current :: Path Rel Dir rs) (Name d)
+appendPath Init Init = (Init :: Path a b s)
+appendPath (ParentIn p) Init = ParentIn (p </> Init :: Path Rel Dir rs)
+appendPath (In p (Name d)) Init = In (p </> Init :: Path Rel Dir rs) (Name d)
 appendPath p1 (ParentIn p2) = ParentIn (p1 </> p2)
 appendPath p1 (In p2 n2) = In (p1 </> p2) n2
 
@@ -341,8 +338,7 @@ unsafePeel
   :: forall a b s
    . Path a b s
   -> Maybe (Tuple (Path a Dir s) (Name b))
-unsafePeel Current = Nothing
-unsafePeel Root = Nothing
+unsafePeel Init = Nothing
 unsafePeel p@(ParentIn _) = case canonicalize' p of
   Tuple true p' -> unsafePeel p'
   _ -> Nothing
@@ -351,8 +347,7 @@ unsafePeel (In p n) = Just $ Tuple p n
 -- | Returns the depth of the path. This may be negative in some cases, e.g.
 -- | `./../../../` has depth `-3`.
 depth :: forall a b s. Path a b s -> Int
-depth Current = 0
-depth Root = 0
+depth Init = 0
 depth (ParentIn p) = depth p - 1
 depth (In p _) = depth p + 1
 
@@ -370,11 +365,11 @@ unsafeCoerceType = unsafeCoerce
 
   -- | The "current directory", which can be used to define relatively-located resources.
 currentDir :: Path Rel Dir Sandboxed
-currentDir = Current
+currentDir = Init
 
 -- | The root directory, which can be used to define absolutely-located resources.
 rootDir :: Path Abs Dir Sandboxed
-rootDir = Root
+rootDir = Init
 
 -- | Renames a file path.
 renameFile :: forall a s. (Name File -> Name File) -> Path a File s -> Path a File s
@@ -396,8 +391,7 @@ canonicalize = snd <<< canonicalize'
 
 -- | Canonicalizes a path and returns information on whether or not it actually changed.
 canonicalize' :: forall a b s. Path a b s -> Tuple Boolean (Path a b s)
-canonicalize' Current = Tuple false Current
-canonicalize' Root = Tuple false Root
+canonicalize' Init = Tuple false Init
 canonicalize' (ParentIn (In p f)) = Tuple true (unsafeCoerceType $ snd $ canonicalize' p)
 canonicalize' (ParentIn p) = case canonicalize' p of
   Tuple changed p' ->
@@ -405,36 +399,59 @@ canonicalize' (ParentIn p) = case canonicalize' p of
     in if changed then canonicalize' p'' else Tuple changed p''
 canonicalize' (In p f) = flip In f <$> canonicalize' p
 
-unsafePrintPath' :: forall a b s. SplitDirOrFile b => Escaper -> Path a b s -> String
+unsafePrintPath' :: forall a b s. SplitRelOrAbs a => SplitDirOrFile b => Escaper -> Path a b s -> String
 unsafePrintPath' r = go
   where
-    go :: forall a' b' s'. SplitDirOrFile b' => Path a' b' s' -> String
-    go Current = "./"
-    go Root = "/"
+    go :: forall a' b' s'. SplitRelOrAbs a' => SplitDirOrFile b' => Path a' b' s' -> String
+    go p@Init = case relOrAbs p of
+      Left _ -> "./"
+      Right _ -> "/"
     go (ParentIn p) = go p <> "../"
     go (In p n) = case dirOrFileName n of
       Left dirN -> go p <> escape (runName dirN) <> "/"
       Right fileN -> go p <> escape (runName fileN)
     escape = runEscaper r
 
-unsafePrintPath :: forall a b s. SplitDirOrFile b => Path a b s -> String
+unsafePrintPath
+  :: forall a b s
+   . SplitRelOrAbs a 
+  => SplitDirOrFile b 
+  => Path a b s
+  -> String
 unsafePrintPath = unsafePrintPath' posixEscaper
 
 -- | Prints a `Path` into its canonical `String` representation. For security
 -- | reasons, the path must be sandboxed before it can be rendered to a string.
-printPath :: forall a b. SplitDirOrFile b => Path a b Sandboxed -> String
+printPath
+  :: forall a b
+   . SplitRelOrAbs a 
+  => SplitDirOrFile b 
+  => Path a b Sandboxed
+  -> String
 printPath = unsafePrintPath
 
 -- | Prints a `Path` into its canonical `String` representation, using the
 -- | specified escaper to escape special characters in path segments. For
 -- | security reasons, the path must be sandboxed before rendering to string.
-printPath' :: forall a b. SplitDirOrFile b => Escaper -> Path a b Sandboxed -> String
+printPath'
+  :: forall a b
+   . SplitRelOrAbs a 
+  => SplitDirOrFile b 
+  => Escaper
+  -> Path a b Sandboxed
+  -> String
 printPath' = unsafePrintPath'
 
 -- | Determines if two paths have the exact same representation. Note that
 -- | two paths may represent the same path even if they have different
 -- | representations!
-identicalPath :: forall a a' b b' s s'. SplitDirOrFile b => SplitDirOrFile b' => Path a b s -> Path a' b' s' -> Boolean
+identicalPath
+  :: forall a a' b b' s s'
+   . SplitRelOrAbs a
+  => SplitRelOrAbs a'
+  => SplitDirOrFile b
+  => SplitDirOrFile b'
+  => Path a b s -> Path a' b' s' -> Boolean
 identicalPath p1 p2 = show p1 == show p2
 
 relativify :: forall a. SplitDirOrFile a => Path Abs a Sandboxed -> Path Rel a Sandboxed
@@ -473,20 +490,19 @@ absolutify p = case dirOrFile p of
 -- | reference path.
 -- |
 -- | Note there are some cases this function cannot handle.
-relativeTo :: forall a b s s'. SplitDirOrFile b => AppendOutcome s' s' s' => Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
+relativeTo :: forall a b s s'. SplitRelOrAbs a => SplitDirOrFile b => AppendOutcome s' s' s' => Path a b s -> Path a Dir s' -> Maybe (Path Rel b s')
 relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
   where
   relativeTo' :: forall b'. SplitDirOrFile b' => Path a b' s -> Path a Dir s' -> Maybe (Path Rel b' s')
-  relativeTo' Root Root = pure Current
-  relativeTo' Current Current = pure Current
+  relativeTo' Init Init = pure (Init :: Path Rel b' s')
   relativeTo' cp1 cp2
-    | identicalPath cp1 cp2 = pure Current
+    | identicalPath cp1 cp2 = pure (Init :: Path Rel b' s')
     | otherwise = do
       Tuple cp1Path name <- unsafePeel cp1
       rel <- relativeTo' cp1Path cp2
       pure case dirOrFileName name of
-        Left dirN -> joinSplit $ rel </> In (Current :: Path Rel Dir s') dirN
-        Right fileN -> joinSplit $ rel </> In (Current :: Path Rel Dir s') fileN
+        Left dirN -> joinSplit $ rel </> In (Init :: Path Rel Dir s') dirN
+        Right fileN -> joinSplit $ rel </> In (Init :: Path Rel Dir s') fileN
     where
     joinSplit :: forall a_ b_ s_. Path a_ b_ s_ -> Path a_ b' s_
     joinSplit = unsafeCoerce
@@ -497,7 +513,7 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
 -- |
 -- | This combinator can be used to ensure that paths which originate from user-code
 -- | cannot access data outside a given directory.
-sandbox :: forall a b s. SplitDirOrFile b => Path a Dir Sandboxed -> Path a b s -> Maybe (Path Rel b Sandboxed)
+sandbox :: forall a b s. SplitRelOrAbs a => SplitDirOrFile b => Path a Dir Sandboxed -> Path a b s -> Maybe (Path Rel b Sandboxed)
 sandbox p1 p2 = p2 `relativeTo` p1
 
 -- | Refines path segments but does not change anything else.
@@ -505,8 +521,7 @@ refine :: forall a b s. SplitDirOrFile b => (Name File -> Name File) -> (Name Di
 refine f d = go
   where
     go :: forall a' b' s'. SplitDirOrFile b' => Path a' b' s' -> Path a' b' s'
-    go Current = Current
-    go Root = Root
+    go Init = Init
     go (ParentIn p) = ParentIn (go p)
     go (In p name) = case dirOrFileName name of
        Left dirN ->
@@ -531,7 +546,7 @@ parsePath
   -> String
   -> z
 parsePath rd ad rf af err "" = err unit
-parsePath rd ad rf af err "/" = ad Root
+parsePath rd ad rf af err "/" = ad Init
 parsePath rd ad rf af err p =
   let
     isAbs = S.take 1 p == "/"
@@ -556,10 +571,10 @@ parsePath rd ad rf af err p =
     case traverse NEString.fromString segsDropped of
       Nothing -> err unit
       Just segs -> case isAbs, isFile of
-        true, true -> af $ foldlWithIndex folder Root segs
-        true, false -> ad $ foldlWithIndex folder Root segs
-        false, true -> rf $ foldlWithIndex folder Current segs
-        false, false -> rd $ foldlWithIndex folder Current segs
+        true, true -> af $ foldlWithIndex folder Init segs
+        true, false -> ad $ foldlWithIndex folder Init segs
+        false, true -> rf $ foldlWithIndex folder Init segs
+        false, false -> rd $ foldlWithIndex folder Init segs
 
 -- | Attempts to parse a relative file from a string.
 parseRelFile :: String -> Maybe (RelFile Unsandboxed)
@@ -577,28 +592,24 @@ parseRelDir = parsePath Just (const Nothing) (const Nothing) (const Nothing) (co
 parseAbsDir :: String -> Maybe (AbsDir Unsandboxed)
 parseAbsDir = parsePath (const Nothing) Just (const Nothing) (const Nothing) (const Nothing)
 
-instance showPath :: SplitDirOrFile b => Show (Path a b s) where
-  show Current = "currentDir"
-  show Root = "rootDir"
+instance showPathRelDir :: (SplitRelOrAbs a, SplitDirOrFile b) => Show (Path a b s) where
+  show p@Init = case relOrAbs p of
+    Left _ -> "currentDir"
+    Right _ -> "rootDir"
   show (ParentIn p) = "(parentDir " <> show p <> ")"
-  show (In p n ) = case dirOrFileName n of
-    Left dirN -> 
-      "(" <> show p <> " </> dir " <> show dirN <> ")"
-    Right fileN -> 
-      "(" <> show p <> " </> file " <> show fileN <> ")"
+  show (In p n ) = "(" <> show p <> " </> " <> case dirOrFileName n of
+    Left d -> "dir " <> show n <> ")"
+    Right f -> "file " <> show f <> ")"
 
-instance eqPath :: SplitDirOrFile b => Eq (Path a b s) where
+instance eqPath :: (SplitRelOrAbs a, SplitDirOrFile b) => Eq (Path a b s) where
   eq p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
 
-instance ordPath :: SplitDirOrFile b => Ord (Path a b s) where
+instance ordPath :: (SplitRelOrAbs a, SplitDirOrFile b) => Ord (Path a b s) where
   compare p1 p2 = go (canonicalize p1) (canonicalize p2)
     where
-    go Current Current = EQ
-    go Current _ = LT
-    go _ Current = GT
-    go Root Root = EQ
-    go Root _ = LT
-    go _ Root = GT
+    go Init Init = EQ
+    go Init _ = LT
+    go _ Init = GT
     go (ParentIn p1') (ParentIn p2') = compare p1' p2'
     go (ParentIn _) _ = LT
     go _ (ParentIn _) = GT
@@ -616,8 +627,7 @@ data ViewRelDir
 
 viewRelDir :: Path Rel Dir Sandboxed -> ViewRelDir
 viewRelDir = case _ of
-  Current -> ViewRelDirCurrent
-  Root -> unsafeCrashWith "Imposible, Root can't be in Rel path"
+  Init -> ViewRelDirCurrent
   ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
   In d n -> ViewRelDirIn (viewRelDir d) n
 
@@ -628,8 +638,7 @@ data ViewAbsDir
 
 viewAbsDir :: Path Abs Dir Sandboxed -> ViewAbsDir
 viewAbsDir = case _ of
-  Current -> unsafeCrashWith "Imposible, Current can't be in Abs path"
-  Root -> ViewAbsDirRoot
+  Init -> ViewAbsDirRoot
   ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
   In d n -> ViewAbsDirIn (viewAbsDir d) n
 
@@ -639,8 +648,7 @@ data ViewAbsFile
 
 viewAbsFile :: Path Abs File Sandboxed -> ViewAbsFile
 viewAbsFile = case _ of
-  Current -> unsafeCrashWith "Imposibl, Current can't be in File path"
-  Root -> unsafeCrashWith "Imposible, Root can't be in File path"
+  Init -> unsafeCrashWith "Imposibl, Init can't be in File path"
   ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
   In d n -> ViewAbsFileIn (viewAbsDir d) n
 
@@ -650,7 +658,6 @@ data ViewRelFile
 
 viewRelFile :: Path Rel File Sandboxed -> ViewRelFile
 viewRelFile = case _ of
-  Current -> unsafeCrashWith "Imposibl, Current can't be in File path"
-  Root -> unsafeCrashWith "Imposible, Root can't be in File path"
+  Init -> unsafeCrashWith "Imposibl, Init can't be in File path"
   ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
   In d n -> ViewRelFileIn (viewRelDir d) n
