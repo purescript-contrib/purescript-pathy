@@ -453,31 +453,11 @@ identicalPath
   => Path a b s -> Path a' b' s' -> Boolean
 identicalPath p1 p2 = show p1 == show p2
 
-relativify :: forall a. SplitDirOrFile a => Path Abs a Sandboxed -> Path Rel a Sandboxed
-relativify p = case dirOrFile p of
-  Left d -> 
-    joinSplit $ asRel $ viewAbsDir d
-  Right f -> 
-    let (Tuple d name) = viewAbsFile f
-    in joinSplit $ asRel d </> file' name
-  where
-  joinSplit :: forall x. Path Rel x Sandboxed -> Path Rel a Sandboxed
-  joinSplit = unsafeCoerce
-  asRel :: DirPathView -> Path Rel Dir Sandboxed
-  asRel = foldl (\p n -> p </> dir' n) currentDir
+relativify :: forall a b. Path Abs a b -> Path Rel a b
+relativify = unsafeCoerce
 
-absolutify :: forall a. SplitDirOrFile a => Path Rel a Sandboxed -> Path Abs a Sandboxed
-absolutify p = case dirOrFile p of
-  Left d -> 
-    joinSplit $ asAbs $ viewRelDir d
-  Right f -> 
-    let (Tuple d name) = viewRelFile f
-    in joinSplit $ asAbs d </> file' name
-  where
-  joinSplit :: forall x. Path Abs x Sandboxed -> Path Abs a Sandboxed
-  joinSplit = unsafeCoerce
-  asAbs :: DirPathView -> Path Abs Dir Sandboxed
-  asAbs = foldl (\p n -> p </> dir' n) rootDir
+absolutify :: forall a b. Path Rel a b -> Path Abs a b
+absolutify = unsafeCoerce
 
 
 -- | Makes one path relative to another reference path, if possible, otherwise
