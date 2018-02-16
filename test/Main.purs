@@ -86,6 +86,26 @@ parsePrintRelFilePath = PG.genRelFilePath <#> \path ->
 
 main :: QC.QC () Unit
 main = do
+  -- let uppp = (parentDir currentDir)
+  -- info $ unsafePrintPath uppp
+  -- let doown = currentDir </> dirFoo </> dirFoo </> dirFoo </> dirFoo
+  -- info $ unsafePrintPath doown
+  -- let up  = sandbox doown uppp
+  -- info $ maybe "oops" unsafePrintPath up
+  -- let pathA = currentDir </> dirFoo </> dirFoo
+  -- let pathB = currentDir </> dirFoo </> dirFoo </> dirFoo
+  -- let x = unsafePartial $ fromJust $ sandbox pathA pathB
+  -- info $ unsafePrintPath x
+  -- info $ maybe "" (show <<< bimap unsafePrintPath runName) (peel x)
+  -- info "========"
+  -- let appRoot = currentDir </> dirFoo </> dirFoo
+  -- let userData = appRoot </> currentDir
+  -- info $ maybe "" (show <<< bimap unsafePrintPath runName) (peel userData)
+  -- info "========"
+  -- let x = unsafePartial $ fromJust $ sandbox pathB pathA 
+  -- info $ unsafePrintPath x
+  -- info $ maybe "" (show <<< bimap unsafePrintPath runName) (peel x)
+  
   info "checking `parse <<< print` for `AbsDir`" *> QC.quickCheck parsePrintAbsDirPath
   info "checking `parse <<< print` for `AbsFile`" *> QC.quickCheck parsePrintAbsFilePath
   info "checking `parse <<< print` for `RelDir`" *> QC.quickCheck parsePrintRelDirPath
@@ -234,7 +254,7 @@ main = do
   test "parseAbsDir - /foo/bar"
     (parseAbsDir "/foo/bar/")
     (Just $ unsandbox $ rootDir </> dirFoo </> dirBar)
-
+  
   info "Checking typeclass laws..."
   Laws.Data.checkEq (Proxy :: Proxy ArbPath)
   Laws.Data.checkOrd (Proxy :: Proxy ArbPath)
