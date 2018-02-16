@@ -65,13 +65,11 @@ module Data.Path.Pathy
   , unsafePrintPath
   , unsafePrintPath'
   , class AppendOutcome
-  , ViewRelDir(..)
+  , DirPathView
+  , FilePathView
   , viewRelDir
-  , ViewAbsDir(..)
   , viewAbsDir
-  , ViewAbsFile(..)
   , viewAbsFile
-  , ViewRelFile(..)
   , viewRelFile
   , relativify
   , absolutify
@@ -85,12 +83,13 @@ import Data.Bifunctor (bimap)
 import Data.Either (Either(..))
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Identity (Identity(..))
+import Data.List (List(..), reverse)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, un)
 import Data.String as S
 import Data.String.NonEmpty (NonEmptyString, appendString)
 import Data.String.NonEmpty (fromString, toString) as NEString
-import Data.Traversable (traverse)
+import Data.Traversable (foldl, traverse)
 import Data.Tuple (Tuple(..), snd)
 import Partial.Unsafe (unsafeCrashWith)
 import Unsafe.Coerce (unsafeCoerce)
@@ -459,30 +458,26 @@ relativify p = case dirOrFile p of
   Left d -> 
     joinSplit $ asRel $ viewAbsDir d
   Right f -> 
-    let (ViewAbsFileIn d name) = viewAbsFile f
+    let (Tuple d name) = viewAbsFile f
     in joinSplit $ asRel d </> file' name
   where
   joinSplit :: forall x. Path Rel x Sandboxed -> Path Rel a Sandboxed
   joinSplit = unsafeCoerce
-  asRel :: ViewAbsDir -> Path Rel Dir Sandboxed
-  asRel = case _ of
-    ViewAbsDirRoot -> currentDir
-    ViewAbsDirIn d n -> asRel d </> dir' n
+  asRel :: DirPathView -> Path Rel Dir Sandboxed
+  asRel = foldl (\p n -> p </> dir' n) currentDir
 
 absolutify :: forall a. SplitDirOrFile a => Path Rel a Sandboxed -> Path Abs a Sandboxed
 absolutify p = case dirOrFile p of
   Left d -> 
     joinSplit $ asAbs $ viewRelDir d
   Right f -> 
-    let (ViewRelFileIn d name) = viewRelFile f
+    let (Tuple d name) = viewRelFile f
     in joinSplit $ asAbs d </> file' name
   where
   joinSplit :: forall x. Path Abs x Sandboxed -> Path Abs a Sandboxed
   joinSplit = unsafeCoerce
-  asAbs :: ViewRelDir -> Path Abs Dir Sandboxed
-  asAbs = case _ of
-    ViewRelDirCurrent -> rootDir
-    ViewRelDirIn d n -> asAbs d </> dir' n
+  asAbs :: DirPathView -> Path Abs Dir Sandboxed
+  asAbs = foldl (\p n -> p </> dir' n) rootDir
 
 
 -- | Makes one path relative to another reference path, if possible, otherwise
@@ -621,43 +616,33 @@ instance showName :: Show (Name a) where
 derive instance eqName :: Eq (Name a)
 derive instance ordName :: Ord (Name a)
 
-data ViewRelDir
-  = ViewRelDirCurrent
-  | ViewRelDirIn ViewRelDir (Name Dir)
+type DirPathView = List (Name Dir)
+type FilePathView = Tuple DirPathView (Name File)
 
-viewRelDir :: Path Rel Dir Sandboxed -> ViewRelDir
-viewRelDir = case _ of
-  Init -> ViewRelDirCurrent
-  ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
-  In d n -> ViewRelDirIn (viewRelDir d) n
+viewRelDir :: Path Rel Dir Sandboxed -> DirPathView
+viewRelDir = reverse <<< go
+  where
+  go = case _ of
+    Init -> Nil
+    ParentIn _ -> unsafeCrashWith "Impossible, ParentIn can't be in Sandboxed path"
+    In d n -> Cons n (go d)
 
+viewAbsDir :: Path Abs Dir Sandboxed -> DirPathView
+viewAbsDir = reverse <<< go
+  where
+  go = case _ of
+    Init -> Nil
+    ParentIn _ -> unsafeCrashWith "Impossible, ParentIn can't be in Sandboxed path"
+    In d n -> Cons n (go d)
 
-data ViewAbsDir
-  = ViewAbsDirRoot
-  | ViewAbsDirIn ViewAbsDir (Name Dir)
-
-viewAbsDir :: Path Abs Dir Sandboxed -> ViewAbsDir
-viewAbsDir = case _ of
-  Init -> ViewAbsDirRoot
-  ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
-  In d n -> ViewAbsDirIn (viewAbsDir d) n
-
-
-data ViewAbsFile
-  = ViewAbsFileIn ViewAbsDir (Name File)
-
-viewAbsFile :: Path Abs File Sandboxed -> ViewAbsFile
+viewAbsFile :: Path Abs File Sandboxed -> FilePathView
 viewAbsFile = case _ of
-  Init -> unsafeCrashWith "Imposibl, Init can't be in File path"
-  ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
-  In d n -> ViewAbsFileIn (viewAbsDir d) n
+  Init -> unsafeCrashWith "Impossible, Init can't be in File path"
+  ParentIn _ -> unsafeCrashWith "Impossible, ParentIn can't be in Sandboxed path"
+  In d n -> Tuple (viewAbsDir d) n
 
-
-data ViewRelFile
-  = ViewRelFileIn ViewRelDir (Name File)
-
-viewRelFile :: Path Rel File Sandboxed -> ViewRelFile
+viewRelFile :: Path Rel File Sandboxed -> FilePathView
 viewRelFile = case _ of
   Init -> unsafeCrashWith "Imposibl, Init can't be in File path"
-  ParentIn _ -> unsafeCrashWith "Imposible, ParentIn can't be in Sandboxed path"
-  In d n -> ViewRelFileIn (viewRelDir d) n
+  ParentIn _ -> unsafeCrashWith "Impossible, ParentIn can't be in Sandboxed path"
+  In d n -> Tuple (viewRelDir d) n
