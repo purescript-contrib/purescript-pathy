@@ -90,7 +90,7 @@ import Data.Newtype (class Newtype, un)
 import Data.String as S
 import Data.String.NonEmpty (NonEmptyString, appendString)
 import Data.String.NonEmpty (fromString, toString) as NEString
-import Data.Traversable (foldl, traverse)
+import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), snd)
 import Partial.Unsafe (unsafeCrashWith)
 import Unsafe.Coerce (unsafeCoerce)
