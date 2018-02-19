@@ -34,6 +34,7 @@ module Data.Path.Pathy
   , pathName
   , identicalPath
   , parentDir
+  , foldPath
   , peel
   , parsePath
   , parseAbsDir
@@ -258,6 +259,18 @@ parentAppend :: forall a b. Path a Dir -> Path Rel b -> Path a b
 parentAppend d p = parentDir d </> p
 
 infixl 6 parentAppend as <..>
+
+foldPath
+  :: forall a b r
+   . r
+  -> (Path a Dir -> r)
+  -> (Path a Dir -> Name b -> r)
+  -> Path a b
+  -> r
+foldPath r f g = case _ of
+  Init -> r
+  ParentIn d -> f d
+  In d n -> g d n
 
 -- | Peels off the last directory and the terminal file or directory name
 -- | from the path. Returns `Nothing` if there is no such pair (for example,
