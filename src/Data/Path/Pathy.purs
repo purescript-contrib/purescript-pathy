@@ -19,7 +19,6 @@ module Data.Path.Pathy
   , (<.>)
   , parentAppend
   , (<..>)
-  , runName
   , canonicalize
   , changeExtension
   , currentDir
@@ -43,8 +42,10 @@ module Data.Path.Pathy
   , parseRelFile
   , class IsRelOrAbs
   , relOrAbs
+  , overRelOrAbs
   , class IsDirOrFile
   , dirOrFile
+  , overDirOrFile
   , refine
   , relativeTo
   , renameDir
@@ -63,7 +64,7 @@ import Prelude
 
 import Data.Array (drop, dropEnd, length)
 import Data.Bifunctor (bimap, lmap)
-import Data.Either (Either(..))
+import Data.Either (Either)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Identity (Identity(..))
 import Data.List (List(..), reverse)
@@ -95,11 +96,8 @@ foreign import data Dir :: DirOrFile
 
 -- | A newtype around a file name.
 newtype Name (n :: DirOrFile) = Name NonEmptyString
-derive instance newtypeName :: Newtype (Name n) _
 
--- | Unwraps the `Name` newtype.
-runName :: forall a. Name a -> String
-runName (Name name) = NEString.toString name
+derive instance newtypeName :: Newtype (Name n) _
 
 -- | A type that describes a Path. All flavors of paths are described by this
 -- | type, whether they are absolute or relative paths and whether they
@@ -147,16 +145,22 @@ type RelPath = AnyPath Rel
 type AbsPath = AnyPath Abs
 
 class IsDirOrFile (x :: DirOrFile) where
-  dirOrFile :: forall f. f x -> Either (f Dir) (f File)
+  dirOrFile :: forall f r. (f Dir -> r) -> (f File -> r) -> f x -> r
 
-instance relIsDirOrFile :: IsDirOrFile Dir where dirOrFile = Left
-instance absIsDirOrFile :: IsDirOrFile File where dirOrFile = Right
+instance relIsDirOrFile :: IsDirOrFile Dir where dirOrFile f _ = f
+instance absIsDirOrFile :: IsDirOrFile File where dirOrFile _ f = f
+
+overDirOrFile :: forall f a. IsDirOrFile a => (f Dir -> f Dir) -> (f File -> f File) -> f a -> f a
+overDirOrFile f g = dirOrFile (unsafeCoerce f) (unsafeCoerce g)
 
 class IsRelOrAbs (a :: RelOrAbs) where
-  relOrAbs :: forall f b. f a b -> Either (f Rel b) (f Abs b)
+  relOrAbs :: forall f b r. (f Rel b -> r) -> (f Abs b -> r) -> f a b -> r
 
-instance relIsRelOrAbs :: IsRelOrAbs Rel where relOrAbs = Left
-instance absIsRelOrAbs :: IsRelOrAbs Abs where relOrAbs = Right
+instance relIsRelOrAbs :: IsRelOrAbs Rel where relOrAbs f _ = f
+instance absIsRelOrAbs :: IsRelOrAbs Abs where relOrAbs _ f = f
+
+overRelOrAbs :: forall f a b. IsRelOrAbs a => (f Rel b -> f Rel b) -> (f Abs b -> f Abs b) -> f a b -> f a b
+overRelOrAbs f g = relOrAbs (unsafeCoerce f) (unsafeCoerce g)
 
 -- | Creates a path which points to a relative file of the specified name.
 file :: NonEmptyString -> Path Rel File
@@ -345,12 +349,7 @@ relativeTo p1 p2 = relativeTo' (canonicalize p1) (canonicalize p2)
     | otherwise = do
         Tuple cp1Path name <- peel cp1
         rel <- relativeTo' cp1Path cp2
-        pure case dirOrFile name of
-          Left dirN -> joinSplit $ rel </> In Init dirN
-          Right fileN -> joinSplit $ rel </> In Init fileN
-    where
-    joinSplit :: forall a_ b_. Path a_ b_ -> Path a_ b'
-    joinSplit = unsafeCoerce
+        pure $ rel </> In Init name
 
 -- | Refines path segments but does not change anything else.
 refine :: forall a b. IsDirOrFile b => (Name File -> Name File) -> (Name Dir -> Name Dir) -> Path a b -> Path a b
@@ -359,13 +358,7 @@ refine f d = go
     go :: forall a' b'. IsDirOrFile b' => Path a' b' -> Path a' b'
     go Init = Init
     go (ParentIn p) = ParentIn (go p)
-    go (In p name) = case dirOrFile name of
-       Left dirN ->
-      -- We need to unwrap name so it compiles :((
-       let Name n = (d dirN) in In (go p) (Name n)
-       Right fileN ->
-      -- We need to unwrap name so it compiles :((
-       let Name n = (f fileN) in In (go p) (Name n)
+    go (In p name) = In (go p) (overDirOrFile d f name)
 
 type ParseError = Unit
 
@@ -429,13 +422,9 @@ parseAbsDir :: String -> Maybe (AbsDir)
 parseAbsDir = parsePath (const Nothing) Just (const Nothing) (const Nothing) (const Nothing)
 
 instance showPathRelDir :: (IsRelOrAbs a, IsDirOrFile b) => Show (Path a b) where
-  show p@Init = case relOrAbs p of
-    Left _ -> "currentDir"
-    Right _ -> "rootDir"
+  show p@Init = relOrAbs (const "currentDir") (const "rootDir") p
   show (ParentIn p) = "(parentDir " <> show p <> ")"
-  show (In p n ) = "(" <> show p <> " </> " <> case dirOrFile n of
-    Left d -> "dir " <> show n <> ")"
-    Right f -> "file " <> show f <> ")"
+  show (In p n) = "(" <> show p <> " </> " <> dirOrFile (("dir " <> _) <<< show) (("file " <> _) <<< show) n <> ")"
 
 instance eqPath :: (IsRelOrAbs a, IsDirOrFile b) => Eq (Path a b) where
   eq p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
