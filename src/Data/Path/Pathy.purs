@@ -42,11 +42,11 @@ module Data.Path.Pathy
   , parseRelDir
   , parseRelFile
   , class IsRelOrAbs
-  , relOrAbs
-  , overRelOrAbs
+  , onRelOrAbs
+  , foldRelOrAbs
   , class IsDirOrFile
-  , dirOrFile
-  , overDirOrFile
+  , onDirOrFile
+  , foldDirOrFile
   , refine
   , relativeTo
   , renameDir
@@ -145,23 +145,39 @@ type RelPath = AnyPath Rel
 -- | A type describing an absolute file or directory path.
 type AbsPath = AnyPath Abs
 
-class IsDirOrFile (x :: DirOrFile) where
-  dirOrFile :: forall f r. (f Dir -> r) -> (f File -> r) -> f x -> r
+class IsDirOrFile (b :: DirOrFile) where
+  onDirOrFile
+    :: forall f r
+     . ((f Dir -> f b) -> f Dir -> r)
+    -> ((f File -> f b) -> f File -> r)
+    -> f b
+    -> r
 
-instance relIsDirOrFile :: IsDirOrFile Dir where dirOrFile f _ = f
-instance absIsDirOrFile :: IsDirOrFile File where dirOrFile _ f = f
+foldDirOrFile :: forall f b r. IsDirOrFile b => (f Dir -> r) -> (f File -> r) -> f b -> r
+foldDirOrFile f g = onDirOrFile (const f) (const g)
 
-overDirOrFile :: forall f a. IsDirOrFile a => (f Dir -> f Dir) -> (f File -> f File) -> f a -> f a
-overDirOrFile f g = dirOrFile (unsafeCoerce f) (unsafeCoerce g)
+instance relIsDirOrFile :: IsDirOrFile Dir where onDirOrFile f _ = f id
+instance absIsDirOrFile :: IsDirOrFile File where onDirOrFile _ f = f id
 
 class IsRelOrAbs (a :: RelOrAbs) where
-  relOrAbs :: forall f b r. (f Rel b -> r) -> (f Abs b -> r) -> f a b -> r
+  onRelOrAbs
+    :: forall f b r
+    . ((f Rel b -> f a b) -> f Rel b -> r)
+    -> ((f Abs b -> f a b) -> f Abs b -> r)
+    -> f a b
+    -> r
 
-instance relIsRelOrAbs :: IsRelOrAbs Rel where relOrAbs f _ = f
-instance absIsRelOrAbs :: IsRelOrAbs Abs where relOrAbs _ f = f
+instance relIsRelOrAbs :: IsRelOrAbs Rel where onRelOrAbs f _ = f id
+instance absIsRelOrAbs :: IsRelOrAbs Abs where onRelOrAbs _ f = f id
 
-overRelOrAbs :: forall f a b. IsRelOrAbs a => (f Rel b -> f Rel b) -> (f Abs b -> f Abs b) -> f a b -> f a b
-overRelOrAbs f g = relOrAbs (unsafeCoerce f) (unsafeCoerce g)
+foldRelOrAbs
+  :: forall f a b r
+  . IsRelOrAbs a
+  => (f Rel b -> r)
+  -> (f Abs b -> r)
+  -> f a b
+  -> r
+foldRelOrAbs f g = onRelOrAbs (const f) (const g)
 
 -- | Creates a path which points to a relative file of the specified name.
 file :: NonEmptyString -> Path Rel File
@@ -371,7 +387,7 @@ refine f d = go
     go :: forall a' b'. IsDirOrFile b' => Path a' b' -> Path a' b'
     go Init = Init
     go (ParentIn p) = ParentIn (go p)
-    go (In p name) = In (go p) (overDirOrFile d f name)
+    go (In p name) = In (go p) (onDirOrFile (\p -> p <<< d) (\p -> p <<< f) name)
 
 type ParseError = Unit
 
@@ -435,9 +451,9 @@ parseAbsDir :: String -> Maybe (AbsDir)
 parseAbsDir = parsePath (const Nothing) Just (const Nothing) (const Nothing) (const Nothing)
 
 instance showPathRelDir :: (IsRelOrAbs a, IsDirOrFile b) => Show (Path a b) where
-  show p@Init = relOrAbs (const "currentDir") (const "rootDir") p
+  show p@Init = foldRelOrAbs (const "currentDir") (const "rootDir") p
   show (ParentIn p) = "(parentDir " <> show p <> ")"
-  show (In p n) = "(" <> show p <> " </> " <> dirOrFile (("dir " <> _) <<< show) (("file " <> _) <<< show) n <> ")"
+  show (In p n) = "(" <> show p <> " </> " <> foldDirOrFile (("dir " <> _) <<< show) (("file " <> _) <<< show) n <> ")"
 
 instance eqPath :: (IsRelOrAbs a, IsDirOrFile b) => Eq (Path a b) where
   eq p1 p2 = canonicalize p1 `identicalPath` canonicalize p2
