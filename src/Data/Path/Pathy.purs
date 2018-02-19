@@ -33,7 +33,7 @@ module Data.Path.Pathy
   , fileName
   , pathName
   , identicalPath
-  , parentDir
+  , parentOf
   , foldPath
   , peel
   , parsePath
@@ -113,13 +113,13 @@ derive instance newtypeName :: Newtype (Name n) _
 -- |
 -- | This ADT allows invalid paths (e.g. paths inside files), but there is no
 -- | possible way for such paths to be constructed by user-land code. The only
--- | "invalid path" that may be constructed is using the `parentDir` function,
--- | e.g. `parentDir rootDir`, or by parsing an equivalent string such as
+-- | "invalid path" that may be constructed is using the `parentOf` function,
+-- | e.g. `parentOf rootDir`, or by parsing an equivalent string such as
 -- | `/../`, but such paths may not be rendered to strings until they are first
 -- | sandboxed to some directory.
 data Path (a :: RelOrAbs) (b :: DirOrFile)
   = Init
-  | ParentIn (Path a Dir)
+  | ParentOf (Path a Dir)
   | In (Path a Dir) (Name b)
 
 -- | A type describing a file whose location is given relative to some other,
@@ -252,9 +252,9 @@ pathName = bimap dirName fileName
 -- | Given a directory path, appends either a file or directory to the path.
 appendPath :: forall a b. Path a Dir -> Path Rel b -> Path a b
 appendPath Init Init = Init
-appendPath (ParentIn p) Init = ParentIn (p </> Init)
+appendPath (ParentOf p) Init = ParentOf (p </> Init)
 appendPath (In p (Name d)) Init = In (p </> Init) (Name d)
-appendPath p1 (ParentIn p2) = ParentIn (p1 </> p2)
+appendPath p1 (ParentOf p2) = ParentOf (p1 </> p2)
 appendPath p1 (In p2 n2) = In (p1 </> p2) n2
 
 infixl 6 appendPath as </>
@@ -272,7 +272,7 @@ infixl 6 setExtension as <.>
 -- | Ascends into the parent of the specified directory, then descends into
 -- | the specified path.
 parentAppend :: forall a b. Path a Dir -> Path Rel b -> Path a b
-parentAppend d p = parentDir d </> p
+parentAppend d p = parentOf d </> p
 
 infixl 6 parentAppend as <..>
 
@@ -285,7 +285,7 @@ foldPath
   -> r
 foldPath r f g = case _ of
   Init -> r
-  ParentIn d -> f d
+  ParentOf d -> f d
   In d n -> g d n
 
 -- | Peels off the last directory and the terminal file or directory name
@@ -297,7 +297,7 @@ peel
    . Path a b
   -> Maybe (Tuple (Path a Dir) (Name b))
 peel Init = Nothing
-peel p@(ParentIn _) = case canonicalize' p of
+peel p@(ParentOf _) = case canonicalize' p of
   Tuple true p' -> peel p'
   _ -> Nothing
 peel (In p n) = Just $ Tuple p n
@@ -306,12 +306,12 @@ peel (In p n) = Just $ Tuple p n
 -- | `./../../../` has depth `-3`.
 depth :: forall a b. Path a b -> Int
 depth Init = 0
-depth (ParentIn p) = depth p - 1
+depth (ParentOf p) = depth p - 1
 depth (In p _) = depth p + 1
 
 -- | Creates a path that points to the parent directory of the specified path.
-parentDir :: forall a. Path a Dir -> Path a Dir
-parentDir = ParentIn
+parentOf :: forall a. Path a Dir -> Path a Dir
+parentOf = ParentOf
 
 unsafeCoerceType :: forall a b b'. Path a b -> Path a b'
 unsafeCoerceType = unsafeCoerce
@@ -345,10 +345,10 @@ canonicalize = snd <<< canonicalize'
 -- | Canonicalizes a path and returns information on whether or not it actually changed.
 canonicalize' :: forall a b. Path a b -> Tuple Boolean (Path a b)
 canonicalize' Init = Tuple false Init
-canonicalize' (ParentIn (In p f)) = Tuple true (unsafeCoerceType $ snd $ canonicalize' p)
-canonicalize' (ParentIn p) = case canonicalize' p of
+canonicalize' (ParentOf (In p f)) = Tuple true (unsafeCoerceType $ snd $ canonicalize' p)
+canonicalize' (ParentOf p) = case canonicalize' p of
   Tuple changed p' ->
-    let p'' = ParentIn p'
+    let p'' = ParentOf p'
     in if changed then canonicalize' p'' else Tuple changed p''
 canonicalize' (In p f) = flip In f <$> canonicalize' p
 
@@ -386,7 +386,7 @@ refine f d = go
   where
     go :: forall a' b'. IsDirOrFile b' => Path a' b' -> Path a' b'
     go Init = Init
-    go (ParentIn p) = ParentIn (go p)
+    go (ParentOf p) = ParentOf (go p)
     go (In p name) = In (go p) (onDirOrFile (\p -> p <<< d) (\p -> p <<< f) name)
 
 type ParseError = Unit
@@ -423,7 +423,7 @@ parsePath rd ad rf af err p =
       if NEString.toString seg == "." then
         base
       else if NEString.toString seg == ".." then
-        ParentIn $ unsafeCoerceType base
+        ParentOf $ unsafeCoerceType base
       else In (unsafeCoerceType base) (Name seg)
   in
     case traverse NEString.fromString segsDropped of
@@ -452,7 +452,7 @@ parseAbsDir = parsePath (const Nothing) Just (const Nothing) (const Nothing) (co
 
 instance showPathRelDir :: (IsRelOrAbs a, IsDirOrFile b) => Show (Path a b) where
   show p@Init = foldRelOrAbs (const "currentDir") (const "rootDir") p
-  show (ParentIn p) = "(parentDir " <> show p <> ")"
+  show (ParentOf p) = "(parentOf " <> show p <> ")"
   show (In p n) = "(" <> show p <> " </> " <> foldDirOrFile (("dir " <> _) <<< show) (("file " <> _) <<< show) n <> ")"
 
 instance eqPath :: (IsRelOrAbs a, IsDirOrFile b) => Eq (Path a b) where
@@ -464,9 +464,9 @@ instance ordPath :: (IsRelOrAbs a, IsDirOrFile b) => Ord (Path a b) where
     go Init Init = EQ
     go Init _ = LT
     go _ Init = GT
-    go (ParentIn p1') (ParentIn p2') = compare p1' p2'
-    go (ParentIn _) _ = LT
-    go _ (ParentIn _) = GT
+    go (ParentOf p1') (ParentOf p2') = compare p1' p2'
+    go (ParentOf _) _ = LT
+    go _ (ParentOf _) = GT
     go (In p1' d1) (In p2' d2) = compare p1' p2' <> compare d1 d2
 
 instance showName :: Show (Name a) where
@@ -483,7 +483,7 @@ viewDir = reverse <<< go
   where
   go = case _ of
     Init -> Nil
-    ParentIn _ -> unsafeCrashWith "Impossible, ParentIn can't be in path"
+    ParentOf _ -> unsafeCrashWith "Impossible, ParentOf can't be in path"
     In d n -> Cons n (go d)
 
 viewFile :: forall a. Path a File -> FilePathView
@@ -492,5 +492,5 @@ viewFile = peelFile >>> lmap viewDir
 peelFile :: forall a. Path a File -> Tuple (Path a Dir) (Name File)
 peelFile = case _ of
   Init -> unsafeCrashWith "Impossible, Init can't be in File path"
-  ParentIn _ -> unsafeCrashWith "Impossible, ParentIn can't be in File path"
+  ParentOf _ -> unsafeCrashWith "Impossible, ParentOf can't be in File path"
   In d n -> Tuple d n
