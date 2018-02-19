@@ -58,8 +58,10 @@ module Data.Path.Pathy
   , viewDir
   , viewFile
   , peelFile
-  )
-  where
+  , unsafePrintPath
+  , unsafePrintPath'
+  , module Exports
+  ) where
 
 import Prelude
 
@@ -71,9 +73,11 @@ import Data.Identity (Identity(..))
 import Data.List (List(..), reverse)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, un)
+import Data.Path.Pathy.Printer (Printer, posixPrinter, printSegment)
+import Data.Path.Pathy.Printer (Printer, posixPrinter, windowsPrinter) as Exports
 import Data.String as S
-import Data.String.NonEmpty (NonEmptyString, appendString)
-import Data.String.NonEmpty (fromString, toString) as NEString
+import Data.String.NonEmpty (NonEmptyString)
+import Data.String.NonEmpty as NES
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), snd)
 import Partial.Unsafe (unsafeCrashWith)
@@ -199,7 +203,7 @@ fileName _ = unsafeCrashWith
 -- | Retrieves the extension of a file name.
 extension :: Name File -> String
 extension (Name f) =
-  let s = NEString.toString f
+  let s = NES.toString f
   in case S.lastIndexOf (S.Pattern ".") s of
     Just x -> S.drop (x + 1) s
     Nothing -> ""
@@ -208,16 +212,16 @@ extension (Name f) =
 dropExtension :: Name File -> Maybe (Name File)
 dropExtension (Name n) =
   let
-    s = NEString.toString n
+    s = NES.toString n
   in case S.lastIndexOf (S.Pattern ".") s of
-    Just x -> map Name $ NEString.fromString $ S.take x s
+    Just x -> map Name $ NES.fromString $ S.take x s
     Nothing -> Just (Name n)
 
 changeExtension :: (String -> String) -> Name File -> Maybe (Name File)
 changeExtension f nm =
   update (f $ extension nm) (dropExtension nm)
   where
-  update ext' name = case NEString.fromString ext' of
+  update ext' name = case NES.fromString ext' of
     Nothing -> name
     Just ext -> Just $ _updateExt ext name
 
@@ -228,7 +232,7 @@ changeExtension' f nm =
 
 _updateExt :: NonEmptyString -> Maybe (Name File) -> Name File
 _updateExt ext = case _ of
-  Just (Name n) -> Name $ n `appendString` "." <> ext
+  Just (Name n) -> Name $ n `NES.appendString` "." <> ext
   Nothing -> Name ext
 
 -- | Creates a path which points to a relative directory of the specified name.
@@ -420,13 +424,13 @@ parsePath rd ad rf af err p =
     last = length segsDropped - 1
     folder :: forall a b. IsDirOrFile b => Int -> Path a b -> NonEmptyString -> Path a b
     folder idx base seg =
-      if NEString.toString seg == "." then
+      if NES.toString seg == "." then
         base
-      else if NEString.toString seg == ".." then
+      else if NES.toString seg == ".." then
         ParentOf $ unsafeCoerceType base
       else In (unsafeCoerceType base) (Name seg)
   in
-    case traverse NEString.fromString segsDropped of
+    case traverse NES.fromString segsDropped of
       Nothing -> err unit
       Just segs -> case isAbs, isFile of
         true, true -> af $ foldlWithIndex folder Init segs
@@ -494,3 +498,25 @@ peelFile = case _ of
   Init -> unsafeCrashWith "Impossible, Init can't be in File path"
   ParentOf _ -> unsafeCrashWith "Impossible, ParentOf can't be in File path"
   In d n -> Tuple d n
+
+-- | Prints a path exactly as-is. This is unsafe as the path may refer to a
+-- | location it should not have access to. Path printing should almost always
+-- | be performed with a `SandboxedPath`.
+unsafePrintPath :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> String
+unsafePrintPath = unsafePrintPath' posixPrinter
+
+-- | Prints a path exactly as-is using the specified `Printer`. This is unsafe
+-- | as the path may refer to a location it should not have access to. Path
+-- | printing should almost always be performed with a `SandboxedPath`.
+unsafePrintPath' :: forall a b. IsRelOrAbs a => IsDirOrFile b => Printer -> Path a b -> String
+unsafePrintPath' printer p = go p
+  where
+    go :: forall b'. IsDirOrFile b' => Path a b' -> String
+    go =
+      foldPath
+        (NES.toString (foldRelOrAbs (const (printer.current <> printer.sep)) (const printer.sep) p))
+        (\p' -> go p' <> NES.toString (printer.up <> printer.sep))
+        (\p' ->
+            foldDirOrFile
+              (\d -> go p' <> printSegment printer d <> NES.toString printer.sep)
+              (\f -> go p' <> printSegment printer f))
