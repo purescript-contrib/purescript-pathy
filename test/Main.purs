@@ -5,21 +5,18 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, info)
 import Control.Monad.Eff.Exception (EXCEPTION, throw)
-import Data.Foldable (foldl)
 import Data.Maybe (Maybe(..))
-import Data.Path.Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Path, Rel, canonicalize, currentDir, depth, dir, dropExtension, file, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, renameFile', rootDir, unsafePrintPath, (<..>), (<.>), (</>))
+import Data.Path.Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, relativeTo, rename, rootDir, unsafePrintPath, (<..>), (<.>), (</>))
 import Data.Path.Pathy.Gen as PG
-import Data.Path.Pathy.Sandboxed (printPath, sandbox, unsandbox)
+import Data.Path.Pathy.Parser (parsePosixAbsDir, parsePosixAbsFile, parsePosixRelDir, parsePosixRelFile)
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
-import Data.Symbol (SProxy(..))
 import Data.Symbol (class IsSymbol, reflectSymbol) as Symbol
+import Data.Symbol (SProxy(..))
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
-import Test.QuickCheck.Laws.Data as Laws.Data
 import Type.Data.Boolean (False) as Symbol
 import Type.Data.Symbol (class Equals) as Symbol
-import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 test :: forall a eff. Show a => Eq a => String -> a -> a -> Eff (console :: CONSOLE, exception :: EXCEPTION | eff) Unit
@@ -31,21 +28,6 @@ test name actual expected= do
 
 test' :: forall a b eff. IsRelOrAbs a => IsDirOrFile b => String -> Path a b -> String -> Eff (console :: CONSOLE, exception :: EXCEPTION | eff) Unit
 test' n p s = test n (unsafePrintPath p) s
-
-newtype ArbPath = ArbPath (Path Abs File)
-
-derive newtype instance eqArbPath :: Eq ArbPath
-derive newtype instance ordArbPath :: Ord ArbPath
-
-runArbPath ∷ ArbPath → (Path Abs File)
-runArbPath (ArbPath p) = p
-
-instance arbitraryArbPath ∷ QC.Arbitrary ArbPath where
-  arbitrary = do
-    numDirs ← Gen.chooseInt 1 10
-    dirs ← map dir <$> Gen.vectorOf numDirs pathPart
-    filename ← file <$> pathPart
-    pure $ ArbPath $ rootDir </> foldl (flip (</>)) filename (dirs ∷ Array (Path Rel Dir))
 
 pathPart ∷ Gen.Gen NonEmptyString
 pathPart = asNonEmptyString <$> Gen.suchThat QC.arbitrary (not <<< Str.null)
@@ -59,6 +41,9 @@ dirFoo = dir (reflectNonEmpty $ SProxy :: SProxy "foo")
 dirBar :: Path Rel Dir
 dirBar = dir (reflectNonEmpty $ SProxy :: SProxy "bar")
 
+dirBaz :: Path Rel Dir
+dirBaz = dir (reflectNonEmpty $ SProxy :: SProxy "baz")
+
 parsePrintCheck :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> Maybe (Path a b) -> QC.Result
 parsePrintCheck input parsed =
   if parsed == Just input
@@ -70,19 +55,38 @@ parsePrintCheck input parsed =
 
 parsePrintAbsDirPath :: Gen.Gen QC.Result
 parsePrintAbsDirPath = PG.genAbsDirPath <#> \path ->
-  parsePrintCheck path (parseAbsDir $ unsafePrintPath path)
+  parsePrintCheck path (parsePosixAbsDir $ unsafePrintPath path)
 
 parsePrintAbsFilePath :: Gen.Gen QC.Result
 parsePrintAbsFilePath = PG.genAbsFilePath <#> \path ->
-  parsePrintCheck path (parseAbsFile $ unsafePrintPath path)
+  parsePrintCheck path (parsePosixAbsFile $ unsafePrintPath path)
 
 parsePrintRelDirPath :: Gen.Gen QC.Result
 parsePrintRelDirPath = PG.genRelDirPath <#> \path ->
-  parsePrintCheck path (parseRelDir $ unsafePrintPath path)
+  parsePrintCheck path (parsePosixRelDir $ unsafePrintPath path)
 
 parsePrintRelFilePath :: Gen.Gen QC.Result
 parsePrintRelFilePath = PG.genRelFilePath <#> \path ->
-  parsePrintCheck path (parseRelFile $ unsafePrintPath path)
+  parsePrintCheck path (parsePosixRelFile $ unsafePrintPath path)
+
+checkRelative :: forall b. IsDirOrFile b => Gen.Gen (Path Abs b) -> Gen.Gen QC.Result
+checkRelative gen = do
+  p1 <- gen
+  p2 <- PG.genAbsDirPath
+  let cp1 = canonicalize p1
+  let cp2 = canonicalize p2
+  let rel = cp1 `relativeTo` cp2
+  let cp1' = canonicalize (cp2 </> rel)
+  pure
+    if cp1 == cp1'
+      then QC.Success
+      else
+        QC.Failed
+          $ "`relativeTo` property did not hold:"
+          <> "\n\tcp1:  " <> unsafePrintPath cp1
+          <> "\n\tcp2:  " <> unsafePrintPath cp2
+          <> "\n\trel:  " <> unsafePrintPath rel
+          <> "\n\tcp1': " <> unsafePrintPath cp1'
 
 main :: QC.QC () Unit
 main = do
@@ -90,6 +94,8 @@ main = do
   info "checking `parse <<< print` for `AbsFile`" *> QC.quickCheck parsePrintAbsFilePath
   info "checking `parse <<< print` for `RelDir`" *> QC.quickCheck parsePrintRelDirPath
   info "checking `parse <<< print` for `RelFile`" *> QC.quickCheck parsePrintRelFilePath
+  info "checking `relativeTo` for `AbsDir`" *> QC.quickCheck (checkRelative PG.genAbsDirPath)
+  info "checking `relativeTo` for `AbsFile`" *> QC.quickCheck (checkRelative PG.genAbsFilePath)
 
   -- Should not compile:
   -- test
@@ -161,100 +167,145 @@ main = do
     (canonicalize (parentOf (parentOf (dirFoo </> dirBar))))
     "./"
 
-  test "renameFile - single level deep"
-    (renameFile' dropExtension (file (reflectNonEmpty $ SProxy :: SProxy "image.png")))
-    (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image")
+  test' "canonicalize - 2 up from root"
+    (canonicalize (parentOf (parentOf rootDir)))
+    "/"
 
-  test "sandbox - fail when relative path lies outside sandbox (above)"
-    (sandbox (rootDir </> dirBar) (parentOf currentDir))
-    Nothing
+  test "canonicalize /foo/../bar/ = /bar"
+    (canonicalize (rootDir </> dirFoo <..> dirBar))
+    (rootDir </> dirBar)
 
-  test "sandbox - fail when relative path lies outside sandbox (neigbouring)"
-    (sandbox (rootDir </> dirBar) (parentOf currentDir </> dirFoo))
-    Nothing
+  test "relativeTo rootDir rootDir = currentDir"
+    (relativeTo rootDir rootDir)
+    (currentDir)
 
-  test "sandbox - fail when absolute path lies outside sandbox"
-    (sandbox (rootDir </> dirBar) (rootDir </> dirFoo </> dirBar))
-    Nothing
+  test' "(rootDir </> dirFoo) `relativeTo` rootDir = currentDir </> dirFoo"
+    ((rootDir </> dirFoo) `relativeTo` rootDir)
+    "./foo/"
 
-  test "sandbox - succeed when relative path goes above sandbox but returns to it"
-    (unsandbox <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
-    (Just (parentOf currentDir </> dirBar))
+  test' "(rootDir </> dirFoo) `relativeTo` (rootDir </> dirBar) = currentDir <..> dirFoo"
+    ((rootDir </> dirFoo) `relativeTo` (rootDir </> dirBar))
+    "./../foo/"
 
-  test "sandbox - succeed when absolute path lies inside sandbox"
-    (unsandbox <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
-    (Just (rootDir </> dirBar </> dirFoo))
+  test' "(rootDir </> dirBar) `relativeTo` (rootDir </> dirFoo) = ./../bar/"
+    ((rootDir </> dirBar) `relativeTo` (rootDir </> dirFoo))
+    "./../bar/"
 
-  test "sandbox - print relative path that goes above sandbox but returns to it"
-    (printPath <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
-    (Just "/bar/")
+  test' "(rootDir </> dirBar) `relativeTo` (rootDir </> dirFoo </> dirFoo) = ./../../bar/"
+    ((rootDir </> dirBar) `relativeTo` (rootDir </> dirFoo </> dirFoo))
+    "./../../bar/"
 
-  test "sandbox - print absolute path that lies inside sandbox"
-    (printPath <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
-    (Just "/bar/foo/")
+  test' "(rootDir </> dirBar) `relativeTo` (rootDir </> dirFoo </> dirFoo </> dirFoo) = ./../../../bar/"
+    ((rootDir </> dirBar) `relativeTo` (rootDir </> dirFoo </> dirFoo </> dirFoo))
+    "./../../../bar/"
 
-  test "depth - negative"
-    (depth (parentOf $ parentOf $ parentOf $ currentDir)) (-3)
+  test' "(rootDir </> dirBar </> dirBar) `relativeTo` (rootDir </> dirFoo) = ./../bar/bar/"
+    ((rootDir </> dirBar </> dirBar) `relativeTo` (rootDir </> dirFoo))
+    "./../bar/bar/"
 
-  test "parseRelFile - image.png"
-    (parseRelFile "image.png")
+  test' "(rootDir </> dirBar </> dirBar) `relativeTo` (rootDir </> dirFoo </> dirFoo) = ./../../bar/bar/"
+    ((rootDir </> dirBar </> dirBar) `relativeTo` (rootDir </> dirFoo </> dirFoo))
+    "./../../bar/bar/"
+
+  test' "(rootDir </> dirBar </> dirFoo </> dirFoo) `relativeTo` (rootDir </> dirFoo </> dirFoo </> dirFoo) = ./../../../bar/foo/foo"
+    ((rootDir </> dirBar </> dirFoo </> dirFoo) `relativeTo` (rootDir </> dirFoo </> dirFoo </> dirFoo))
+    "./../../../bar/foo/foo/"
+
+  test' "(rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` rootDir = ./foo/bar/baz/"
+    ((rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` rootDir)
+    "./foo/bar/baz/"
+
+  test' "(rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` (rootDir </> dirFoo) = ./../foo/bar/baz/"
+    ((rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` (rootDir </> dirFoo))
+    "./../foo/bar/baz/"
+
+  test "rename - single level deep"
+    (rename (alterExtension (const Nothing)) (file (reflectNonEmpty $ SProxy :: SProxy "image.png")))
+    (file $ reflectNonEmpty $ SProxy :: SProxy "image")
+
+  -- test "sandbox - fail when relative path lies outside sandbox (above)"
+  --   (sandbox (rootDir </> dirBar) (parentOf currentDir))
+  --   Nothing
+  --
+  -- test "sandbox - fail when relative path lies outside sandbox (neigbouring)"
+  --   (sandbox (rootDir </> dirBar) (parentOf currentDir </> dirFoo))
+  --   Nothing
+  --
+  -- test "sandbox - fail when absolute path lies outside sandbox"
+  --   (sandbox (rootDir </> dirBar) (rootDir </> dirFoo </> dirBar))
+  --   Nothing
+  --
+  -- test "sandbox - succeed when relative path goes above sandbox but returns to it"
+  --   (unsandbox <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
+  --   (Just (parentOf currentDir </> dirBar))
+  --
+  -- test "sandbox - succeed when absolute path lies inside sandbox"
+  --   (unsandbox <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
+  --   (Just (rootDir </> dirBar </> dirFoo))
+  --
+  -- test "sandbox - print relative path that goes above sandbox but returns to it"
+  --   (printPath <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
+  --   (Just "/bar/")
+  --
+  -- test "sandbox - print absolute path that lies inside sandbox"
+  --   (printPath <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
+  --   (Just "/bar/foo/")
+
+  test "parsePosixRelFile - image.png"
+    (parsePosixRelFile "image.png")
     (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
 
-  test "parseRelFile - ./image.png"
-    (parseRelFile "./image.png")
+  test "parsePosixRelFile - ./image.png"
+    (parsePosixRelFile "./image.png")
     (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
 
-  test "parseRelFile - foo/image.png"
-    (parseRelFile "foo/image.png")
+  test "parsePosixRelFile - foo/image.png"
+    (parsePosixRelFile "foo/image.png")
     (Just $ dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
-  test "parseRelFile - ../foo/image.png"
-    (parseRelFile "../foo/image.png")
+  test "parsePosixRelFile - ../foo/image.png"
+    (parsePosixRelFile "../foo/image.png")
     (Just $ currentDir <..> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
-  test "parseAbsFile - /image.png"
-    (parseAbsFile "/image.png")
+  test "parsePosixAbsFile - /image.png"
+    (parsePosixAbsFile "/image.png")
     (Just $ rootDir </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
-  test "parseAbsFile - /foo/image.png"
-    (parseAbsFile "/foo/image.png")
+  test "parsePosixAbsFile - /foo/image.png"
+    (parsePosixAbsFile "/foo/image.png")
     (Just $ rootDir </> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
-  test "parseRelDir - empty string"
-    (parseRelDir "")
+  test "parsePosixRelDir - empty string"
+    (parsePosixRelDir "")
     Nothing
 
-  test "parseRelDir - ./../"
-    (parseRelDir "./../")
+  test "parsePosixRelDir - ./../"
+    (parsePosixRelDir "./../")
     (Just $ currentDir <..> currentDir)
 
-  test "parseRelDir - foo/"
-    (parseRelDir "foo/")
+  test "parsePosixRelDir - foo/"
+    (parsePosixRelDir "foo/")
     (Just dirFoo)
 
-  test "parseRelDir - foo/bar"
-    (parseRelDir "foo/bar/")
+  test "parsePosixRelDir - foo/bar"
+    (parsePosixRelDir "foo/bar/")
     (Just $ dirFoo </> dirBar)
 
-  test "parseRelDir - ./foo/bar"
-    (parseRelDir "./foo/bar/")
+  test "parsePosixRelDir - ./foo/bar"
+    (parsePosixRelDir "./foo/bar/")
     (Just $ dirFoo </> dirBar)
 
-  test "parseAbsDir - /"
-    (parseAbsDir "/")
+  test "parsePosixAbsDir - /"
+    (parsePosixAbsDir "/")
     (Just $ rootDir)
 
-  test "parseAbsDir - /foo/"
-    (parseAbsDir "/foo/")
+  test "parsePosixAbsDir - /foo/"
+    (parsePosixAbsDir "/foo/")
     (Just $ rootDir </> dirFoo)
 
-  test "parseAbsDir - /foo/bar"
-    (parseAbsDir "/foo/bar/")
+  test "parsePosixAbsDir - /foo/bar"
+    (parsePosixAbsDir "/foo/bar/")
     (Just $ rootDir </> dirFoo </> dirBar)
-
-  info "Checking typeclass laws..."
-  Laws.Data.checkEq (Proxy :: Proxy ArbPath)
-  Laws.Data.checkOrd (Proxy :: Proxy ArbPath)
 
 class IsSymbolNonEmpty sym where
   reflectNonEmpty :: SProxy sym -> NonEmptyString

@@ -5,7 +5,7 @@ module Data.Path.Pathy.Gen
   , genRelDirPath
   , genRelFilePath
   , genRelAnyPath
-  )where
+  ) where
 
 import Prelude
 
@@ -26,7 +26,6 @@ genName ∷ ∀ m. MonadGen m ⇒ MonadRec m ⇒ m NonEmptyString
 genName = cons <$> genChar <*> SG.genString genChar
   where
   genChar = Gen.oneOf $ CG.genDigitChar :| [CG.genAlpha]
-
 
 genAbsDirPath :: forall m. MonadGen m => MonadRec m => m AbsDir
 genAbsDirPath = Gen.sized \size → do

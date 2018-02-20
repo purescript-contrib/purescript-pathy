@@ -1,7 +1,7 @@
 module Data.Path.Pathy.Sandboxed
   ( SandboxedPath
-  , sandbox
-  , sandboxAny
+  -- , sandbox
+  -- , sandboxAny
   , sandboxRoot
   , unsandbox
   , printPath
@@ -24,38 +24,38 @@ instance showSandboxedPath :: (IsRelOrAbs a, IsDirOrFile b) => Show (SandboxedPa
 -- | Attempts to sandbox a path relative to an absolute directory ("sandbox
 -- | root"). If the `Path a b` escapes the sandbox root `Nothing` will be
 -- | returned.
-sandbox
-  :: forall a b
-   . IsRelOrAbs a
-  => IsDirOrFile b
-  => Path Abs Dir
-  -> Path a b
-  -> Maybe (SandboxedPath a b)
-sandbox root = onRelOrAbs goRel goAbs
-  where
-    goRel :: (Path Rel b -> Path a b) -> Path Rel b -> Maybe (SandboxedPath a b)
-    goRel coe p =
-      case (root </> p) `relativeTo` root of
-        Nothing -> Nothing
-        Just _ -> Just (SandboxedPath root (coe p))
-    goAbs :: (Path Abs b -> Path a b) -> Path Abs b -> Maybe (SandboxedPath a b)
-    goAbs coe p =
-      case p `relativeTo` root of
-        Nothing -> Nothing
-        Just _ -> Just (SandboxedPath root (coe p))
+-- sandbox
+--   :: forall a b
+--    . IsRelOrAbs a
+--   => IsDirOrFile b
+--   => Path Abs Dir
+--   -> Path a b
+--   -> Maybe (SandboxedPath a b)
+-- sandbox root = onRelOrAbs goRel goAbs
+--   where
+--     goRel :: (Path Rel b -> Path a b) -> Path Rel b -> Maybe (SandboxedPath a b)
+--     goRel coe p =
+--       case (root </> p) `relativeTo` root of
+--         Nothing -> Nothing
+--         Just _ -> Just (SandboxedPath root (coe p))
+--     goAbs :: (Path Abs b -> Path a b) -> Path Abs b -> Maybe (SandboxedPath a b)
+--     goAbs coe p =
+--       case p `relativeTo` root of
+--         Nothing -> Nothing
+--         Just _ -> Just (SandboxedPath root (coe p))
 
 -- | Sandboxes any path (a to `/`.
 -- |
 -- | This should only be used for situations where a path is already constrained
 -- | within a system so that access to `/` is safe - for instance, in URIs.
-sandboxAny
-  :: forall a b
-   . IsRelOrAbs a
-  => IsDirOrFile b
-  => Path a b
-  -> SandboxedPath a b
-sandboxAny p =
-  fromMaybe (SandboxedPath rootDir (canonicalize p)) (sandbox rootDir p)
+-- sandboxAny
+--   :: forall a b
+--    . IsRelOrAbs a
+--   => IsDirOrFile b
+--   => Path a b
+--   -> SandboxedPath a b
+-- sandboxAny p =
+--   fromMaybe (SandboxedPath rootDir (canonicalize p)) (sandbox rootDir p)
 
 -- | Returns the location a `SandboxedPath` was sandboxed to.
 sandboxRoot :: forall a b. SandboxedPath a b -> Path Abs Dir
