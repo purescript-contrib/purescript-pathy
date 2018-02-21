@@ -9,7 +9,7 @@ module Pathy
 
 import Pathy.Path (AbsDir, AbsFile, AbsPath, AnyPath, Path, RelDir, RelFile, RelPath, appendPath, canonicalize, currentDir, dir, dir', extendPath, file, file', fileName, foldPath, name, parentAppend, parentOf, peel, peelFile, refine, relativeTo, rename, renameTraverse, rootDir, setExtension, (<..>), (<.>), (</>))
 import Pathy.Name (Name(..), alterExtension, extension)
-import Pathy.Printer (Escaper(..), Printer, dotEscaper, escape, posixEscaper, posixPrinter, printSegment, slashEscaper, unsafePrintPath, windowsEscaper, windowsPrinter)
+import Pathy.Printer (Escaper(..), Printer, debugPrintPath, posixPrinter, printPath, unsafePrintPath, windowsPrinter)
 import Pathy.Parser (Parser(..), parseAbsDir, parseAbsFile, parsePath, parseRelDir, parseRelFile, posixParser)
 import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel)
-import Pathy.Sandboxed (SandboxedPath, printPath, sandbox, sandboxAny, sandboxRoot, unsandbox)
+import Pathy.Sandboxed (SandboxedPath, sandbox, sandboxAny, sandboxRoot, unsandbox)

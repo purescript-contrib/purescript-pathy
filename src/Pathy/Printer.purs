@@ -1,4 +1,16 @@
-module Pathy.Printer where
+module Pathy.Printer
+  ( Printer
+  , posixPrinter
+  , windowsPrinter
+  , printPath
+  , unsafePrintPath
+  , debugPrintPath
+  , Escaper(..)
+  , slashEscaper
+  , dotEscaper
+  , posixEscaper
+  , windowsEscaper
+  ) where
 
 import Prelude
 
@@ -10,8 +22,9 @@ import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Partial.Unsafe (unsafePartial)
-import Pathy.Path (Path, foldPath)
-import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, foldDirOrFile, foldRelOrAbs)
+import Pathy.Path (Path, canonicalize, foldPath, (</>))
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, foldDirOrFile, foldRelOrAbs, onRelOrAbs)
+import Pathy.Sandboxed (SandboxedPath, sandboxRoot, unsandbox)
 
 -- | A `Printer` defines options for printing paths.
 -- |
@@ -49,17 +62,59 @@ windowsPrinter =
   , escaper: windowsEscaper
   }
 
--- | Prints a path exactly as-is using the specified `Printer`. This is unsafe
--- | as the path may refer to a location it should not have access to. Path
--- | printing should almost always be performed with a `SandboxedPath`.
+-- | Prints a `SandboxedPath` into its canonical `String` representation, using
+-- | the specified printer. The printed path will always be absolute, as this
+-- | is the only way to ensure the path is safely referring to the intended
+-- | location.
+printPath
+  :: forall a b
+   . IsRelOrAbs a
+  => IsDirOrFile b
+  => Printer
+  -> SandboxedPath a b
+  -> String
+printPath r sp =
+  let
+    root = sandboxRoot sp
+    p = unsandbox sp
+  in
+    printPathRep
+      r
+      (onRelOrAbs (\_ p' -> canonicalize (root </> p')) (flip const) p)
+
+-- | Prints a `SandboxedPath` into its canonical `String` representation, using
+-- | the specified printer. This will print a relative path if `b ~ Rel`, which
+-- | depending on how the resulting string is used, may be unsafe.
 unsafePrintPath
+  :: forall a b
+   . IsRelOrAbs a
+  => IsDirOrFile b
+  => Printer
+  -> SandboxedPath a b
+  -> String
+unsafePrintPath r sp = printPathRep r (unsandbox sp)
+
+-- | Prints a path exactly according to its representation. This should only be
+-- | used for debug purposes. Using this function will raise a warning at
+-- | compile time as a reminder!
+debugPrintPath
+  :: forall a b
+   . Warn "debugPrintPath usage"
+  => IsRelOrAbs a
+  => IsDirOrFile b
+  => Printer
+  -> Path a b
+  -> String
+debugPrintPath = printPathRep
+
+printPathRep
   :: forall a b
    . IsRelOrAbs a
   => IsDirOrFile b
   => Printer
   -> Path a b
   -> String
-unsafePrintPath printer p = go p
+printPathRep printer p = go p
   where
     go :: forall b'. IsDirOrFile b' => Path a b' -> String
     go =

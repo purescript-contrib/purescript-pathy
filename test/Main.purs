@@ -10,7 +10,7 @@ import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.Symbol (class IsSymbol, reflectSymbol) as Symbol
 import Data.Symbol (SProxy(..))
-import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
+import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, debugPrintPath, unsandbox, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
@@ -26,7 +26,7 @@ test name actual expected= do
     else throw $ "Failed:\n    Expected: " <> (show expected) <> "\n    Actual:   " <> (show actual)
 
 test' :: forall a b eff. IsRelOrAbs a => IsDirOrFile b => String -> Path a b -> String -> Eff (console :: CONSOLE, exception :: EXCEPTION | eff) Unit
-test' n p s = test n (unsafePrintPath posixPrinter p) s
+test' n p s = test n (printTestPath p) s
 
 pathPart ∷ Gen.Gen NonEmptyString
 pathPart = asNonEmptyString <$> Gen.suchThat QC.arbitrary (not <<< Str.null)
@@ -49,24 +49,24 @@ parsePrintCheck input parsed =
     then QC.Success
     else QC.Failed
       $ "`parse (print path) != Just path` for path: `" <> show input <> "` which was re-parsed into `" <> show parsed <> "`"
-      <> "\n\tPrinted path: " <> show (unsafePrintPath posixPrinter input)
-      <> "\n\tPrinted path': `" <> show (map (unsafePrintPath posixPrinter) parsed) <> "`"
+      <> "\n\tPrinted path: " <> show (printTestPath input)
+      <> "\n\tPrinted path': `" <> show (map (printTestPath) parsed) <> "`"
 
 parsePrintAbsDirPath :: Gen.Gen QC.Result
 parsePrintAbsDirPath = PG.genAbsDirPath <#> \path ->
-  parsePrintCheck path (parseAbsDir posixParser $ unsafePrintPath posixPrinter path)
+  parsePrintCheck path (parseAbsDir posixParser $ printTestPath path)
 
 parsePrintAbsFilePath :: Gen.Gen QC.Result
 parsePrintAbsFilePath = PG.genAbsFilePath <#> \path ->
-  parsePrintCheck path (parseAbsFile posixParser $ unsafePrintPath posixPrinter path)
+  parsePrintCheck path (parseAbsFile posixParser $ printTestPath path)
 
 parsePrintRelDirPath :: Gen.Gen QC.Result
 parsePrintRelDirPath = PG.genRelDirPath <#> \path ->
-  parsePrintCheck path (parseRelDir posixParser $ unsafePrintPath posixPrinter path)
+  parsePrintCheck path (parseRelDir posixParser $ printTestPath path)
 
 parsePrintRelFilePath :: Gen.Gen QC.Result
 parsePrintRelFilePath = PG.genRelFilePath <#> \path ->
-  parsePrintCheck path (parseRelFile posixParser $ unsafePrintPath posixPrinter path)
+  parsePrintCheck path (parseRelFile posixParser $ printTestPath path)
 
 checkRelative :: forall b. IsDirOrFile b => Gen.Gen (Path Abs b) -> Gen.Gen QC.Result
 checkRelative gen = do
@@ -82,10 +82,10 @@ checkRelative gen = do
       else
         QC.Failed
           $ "`relativeTo` property did not hold:"
-          <> "\n\tcp1:  " <> unsafePrintPath posixPrinter cp1
-          <> "\n\tcp2:  " <> unsafePrintPath posixPrinter cp2
-          <> "\n\trel:  " <> unsafePrintPath posixPrinter rel
-          <> "\n\tcp1': " <> unsafePrintPath posixPrinter cp1'
+          <> "\n\tcp1:  " <> printTestPath cp1
+          <> "\n\tcp2:  " <> printTestPath cp2
+          <> "\n\trel:  " <> printTestPath rel
+          <> "\n\tcp1': " <> printTestPath cp1'
 
 main :: QC.QC () Unit
 main = do
@@ -326,3 +326,6 @@ instance isSymbolNonEmpty :: (Symbol.IsSymbol s, Symbol.Equals s "" Symbol.False
     where
     asNonEmpty :: String -> NonEmptyString
     asNonEmpty = unsafeCoerce
+
+printTestPath :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> String
+printTestPath p = debugPrintPath posixPrinter p

@@ -4,7 +4,6 @@ module Pathy.Sandboxed
   , sandboxAny
   , sandboxRoot
   , unsandbox
-  , printPath
   ) where
 
 import Prelude
@@ -12,7 +11,6 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Pathy.Path (Path, canonicalize, foldPath, relativeTo, rootDir, (</>))
 import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, onRelOrAbs)
-import Pathy.Printer (Printer, unsafePrintPath)
 
 -- | The type for paths that have been sandboxed.
 data SandboxedPath a b = SandboxedPath (Path Abs Dir) (Path a b)
@@ -55,19 +53,3 @@ sandboxRoot (SandboxedPath root _) = root
 -- | Extracts the original path from a `SandboxedPath`.
 unsandbox :: forall a b. SandboxedPath a b -> Path a b
 unsandbox (SandboxedPath _ p) = p
-
--- | Prints a `SandboxedPath` into its canonical `String` representation, using
--- | the specified printer. The printed path will always be absolute, as this
--- | is the only way to ensure the path is safely referring to the intended
--- | location.
-printPath
-  :: forall a b
-   . IsRelOrAbs a
-  => IsDirOrFile b
-  => Printer
-  -> SandboxedPath a b
-  -> String
-printPath r (SandboxedPath root p) =
-  unsafePrintPath
-    r
-    (onRelOrAbs (\_ p' -> canonicalize (root </> p')) (flip const) p)
