@@ -9,10 +9,11 @@ import Data.Maybe (Maybe(..))
 import Data.Path.Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, relativeTo, rename, rootDir, unsafePrintPath, (<..>), (<.>), (</>))
 import Data.Path.Pathy.Gen as PG
 import Data.Path.Pathy.Parser (parsePosixAbsDir, parsePosixAbsFile, parsePosixRelDir, parsePosixRelFile)
+import Data.Path.Pathy.Sandboxed (printPath, sandbox, unsandbox)
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
-import Data.Symbol (class IsSymbol, reflectSymbol) as Symbol
 import Data.Symbol (SProxy(..))
+import Data.Symbol (class IsSymbol, reflectSymbol) as Symbol
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
 import Type.Data.Boolean (False) as Symbol
@@ -179,6 +180,10 @@ main = do
     (relativeTo rootDir rootDir)
     (currentDir)
 
+  test' "(rootDir </> dirFoo) `relativeTo` (rootDir </> dirFoo) = ./"
+    ((rootDir </> dirFoo) `relativeTo` (rootDir </> dirFoo))
+    "./"
+
   test' "(rootDir </> dirFoo) `relativeTo` rootDir = currentDir </> dirFoo"
     ((rootDir </> dirFoo) `relativeTo` rootDir)
     "./foo/"
@@ -215,41 +220,49 @@ main = do
     ((rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` rootDir)
     "./foo/bar/baz/"
 
-  test' "(rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` (rootDir </> dirFoo) = ./../foo/bar/baz/"
+  test' "(rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` (rootDir </> dirFoo) = ./bar/baz/"
     ((rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` (rootDir </> dirFoo))
+    "./bar/baz/"
+
+  test' "(rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` (rootDir </> dirBaz) = ./../foo/bar/baz/"
+    ((rootDir </> dirFoo </> dirBar </> dirBaz) `relativeTo` (rootDir </> dirBaz))
     "./../foo/bar/baz/"
+
+  test' "(rootDir </> dirBar </> dirFoo) `relativeTo` (rootDir </> dirBar) = ./foo/"
+    ((rootDir </> dirBar </> dirFoo) `relativeTo` (rootDir </> dirBar))
+    "./foo/"
 
   test "rename - single level deep"
     (rename (alterExtension (const Nothing)) (file (reflectNonEmpty $ SProxy :: SProxy "image.png")))
     (file $ reflectNonEmpty $ SProxy :: SProxy "image")
 
-  -- test "sandbox - fail when relative path lies outside sandbox (above)"
-  --   (sandbox (rootDir </> dirBar) (parentOf currentDir))
-  --   Nothing
-  --
-  -- test "sandbox - fail when relative path lies outside sandbox (neigbouring)"
-  --   (sandbox (rootDir </> dirBar) (parentOf currentDir </> dirFoo))
-  --   Nothing
-  --
-  -- test "sandbox - fail when absolute path lies outside sandbox"
-  --   (sandbox (rootDir </> dirBar) (rootDir </> dirFoo </> dirBar))
-  --   Nothing
-  --
-  -- test "sandbox - succeed when relative path goes above sandbox but returns to it"
-  --   (unsandbox <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
-  --   (Just (parentOf currentDir </> dirBar))
-  --
-  -- test "sandbox - succeed when absolute path lies inside sandbox"
-  --   (unsandbox <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
-  --   (Just (rootDir </> dirBar </> dirFoo))
-  --
-  -- test "sandbox - print relative path that goes above sandbox but returns to it"
-  --   (printPath <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
-  --   (Just "/bar/")
-  --
-  -- test "sandbox - print absolute path that lies inside sandbox"
-  --   (printPath <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
-  --   (Just "/bar/foo/")
+  test "sandbox - fail when relative path lies outside sandbox (above)"
+    (sandbox (rootDir </> dirBar) (parentOf currentDir))
+    Nothing
+
+  test "sandbox - fail when relative path lies outside sandbox (neigbouring)"
+    (sandbox (rootDir </> dirBar) (parentOf currentDir </> dirFoo))
+    Nothing
+
+  test "sandbox - fail when absolute path lies outside sandbox"
+    (sandbox (rootDir </> dirBar) (rootDir </> dirFoo </> dirBar))
+    Nothing
+
+  test "sandbox - succeed when relative path goes above sandbox but returns to it"
+    (unsandbox <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
+    (Just (parentOf currentDir </> dirBar))
+
+  test "sandbox - succeed when absolute path lies inside sandbox"
+    (unsandbox <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
+    (Just (rootDir </> dirBar </> dirFoo))
+
+  test "sandbox - print relative path that goes above sandbox but returns to it"
+    (printPath <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
+    (Just "/bar/")
+
+  test "sandbox - print absolute path that lies inside sandbox"
+    (printPath <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
+    (Just "/bar/foo/")
 
   test "parsePosixRelFile - image.png"
     (parsePosixRelFile "image.png")

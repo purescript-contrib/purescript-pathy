@@ -261,41 +261,28 @@ setExtension p ext = rename (alterExtension (const (Just ext))) p
 
 infixl 6 setExtension as <.>
 
--- | Makes one path relative to another reference path.
-relativeTo
-  :: forall b
-   . IsDirOrFile b
-  => Path Abs b
-  -> Path Abs Dir
-  -> Path Rel b
-relativeTo p rp =
-  case canonicalize p, canonicalize rp of
-    Init, Init -> Init
-    p', Init ->
-      -- Coercion is safe as if the reference path is `/` the result is just
-      -- whatever the input was, but with a phantom type indicating it is
-      -- relative - the actual representation would be the same if it were
-      -- reconstructed with `Rel`.
-      (unsafeCoerce :: Path Abs b -> Path Rel b) p'
-    p'@Init, rp' ->
-      -- Coercion is safe as `Init` can only exist when `b ~ Dir`
-      (unsafeCoerce :: Path Rel Dir -> Path Rel b) $ step (ParentOf currentDir) Init rp'
-    In p' name, In rp' rname
-      | p' == rp' && foldDirOrFile (_ == rname) (const false) name -> Init
-      | otherwise -> In (step (ParentOf currentDir) p' rp') name
-    _, _ ->
-      unsafeCrashWith "`ParentOf` in Pathy.relativeTo [1] (this should be impossible)"
+-- | Makes a path relative to a reference path.
+relativeTo :: forall b. Path Abs b -> Path Abs Dir -> Path Rel b
+relativeTo p rp = coeB $ step Init (canonicalize (coeD p)) (canonicalize rp)
   where
     step :: Path Rel Dir -> Path Abs Dir -> Path Abs Dir -> Path Rel Dir
     step acc = case _, _ of
-      Init, Init -> acc
+      p', rp' | p' == rp' -> acc
       Init, In rp' _ -> step (ParentOf acc) Init rp'
       In p' name, Init -> In (step acc p' Init) name
-      In p' name, rp'@(In rp'' rname)
-        | p' == rp'' && name == rname -> acc
-        | otherwise -> In (step (ParentOf currentDir) p' rp') name
+      In p' name, rp'
+        | p' == rp' -> In acc name
+        | otherwise -> In (step acc p' rp') name
       _, _ ->
-        unsafeCrashWith "`ParentOf` in Pathy.relativeTo [2] (this should be impossible)"
+        unsafeCrashWith "`ParentOf` in Pathy.relativeTo (this should be impossible)"
+    -- Unfortunately we can't avoid some coercions in this function unless
+    -- we actually write two different verions of `relativeTo` for file/dir
+    -- paths. Since the actual data representation is same either way the
+    -- coercions are safe.
+    coeD :: forall a. Path a b -> Path a Dir
+    coeD = unsafeCoerce
+    coeB :: forall a. Path a Dir -> Path a b
+    coeB = unsafeCoerce
 
 -- | Refines path segments but does not change anything else.
 refine
