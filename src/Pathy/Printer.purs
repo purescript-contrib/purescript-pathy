@@ -10,6 +10,8 @@ import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Partial.Unsafe (unsafePartial)
+import Pathy.Path (Path, foldPath)
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, foldDirOrFile, foldRelOrAbs)
 
 -- | A `Printer` defines options for printing paths.
 -- |
@@ -46,6 +48,28 @@ windowsPrinter =
   , sep: NES.singleton '\\'
   , escaper: windowsEscaper
   }
+
+-- | Prints a path exactly as-is using the specified `Printer`. This is unsafe
+-- | as the path may refer to a location it should not have access to. Path
+-- | printing should almost always be performed with a `SandboxedPath`.
+unsafePrintPath
+  :: forall a b
+   . IsRelOrAbs a
+  => IsDirOrFile b
+  => Printer
+  -> Path a b
+  -> String
+unsafePrintPath printer p = go p
+  where
+    go :: forall b'. IsDirOrFile b' => Path a b' -> String
+    go =
+      foldPath
+        (NES.toString (foldRelOrAbs (const (printer.current <> printer.sep)) (const printer.sep) p))
+        (\p' -> go p' <> NES.toString (printer.up <> printer.sep))
+        (\p' ->
+            foldDirOrFile
+              (\d -> go p' <> printSegment printer d <> NES.toString printer.sep)
+              (\f -> go p' <> printSegment printer f))
 
 -- | Prints a name as a `String` using the escaper from the specified printer.
 printSegment :: forall name. Newtype name NonEmptyString => Printer -> name -> String

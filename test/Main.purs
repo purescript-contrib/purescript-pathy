@@ -10,10 +10,8 @@ import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.Symbol (class IsSymbol, reflectSymbol) as Symbol
 import Data.Symbol (SProxy(..))
-import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, posixPrinter, relativeTo, rename, rootDir, unsafePrintPath, (<..>), (<.>), (</>))
+import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, unsafePrintPath, unsandbox, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
-import Pathy.Parser (parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser)
-import Pathy.Sandboxed (printPath, sandbox, unsandbox)
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
 import Type.Data.Boolean (False) as Symbol

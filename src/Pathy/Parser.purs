@@ -18,7 +18,7 @@ import Data.Maybe (Maybe(..))
 import Data.String as S
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
-import Pathy (AbsDir, AbsFile, Path, RelDir, RelFile, currentDir, extendPath, parentOf, rootDir)
+import Pathy.Path (AbsDir, AbsFile, Path, RelDir, RelFile, currentDir, extendPath, parentOf, rootDir)
 import Pathy.Name (Name(..))
 import Pathy.Phantom (Dir)
 

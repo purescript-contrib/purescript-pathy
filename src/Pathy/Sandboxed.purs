@@ -10,7 +10,9 @@ module Pathy.Sandboxed
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Printer, canonicalize, foldPath, onRelOrAbs, relativeTo, rootDir, unsafePrintPath, (</>))
+import Pathy.Path (Path, canonicalize, foldPath, relativeTo, rootDir, (</>))
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, onRelOrAbs)
+import Pathy.Printer (Printer, unsafePrintPath)
 
 -- | The type for paths that have been sandboxed.
 data SandboxedPath a b = SandboxedPath (Path Abs Dir) (Path a b)
