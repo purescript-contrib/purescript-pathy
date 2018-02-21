@@ -1,9 +1,11 @@
 module Data.Path.Pathy.Parser
-  ( parsePosixPath
-  , parsePosixRelFile
-  , parsePosixAbsFile
-  , parsePosixRelDir
-  , parsePosixAbsDir
+  ( Parser(..)
+  , posixParser
+  , parsePath
+  , parseRelFile
+  , parseAbsFile
+  , parseRelDir
+  , parseAbsDir
   ) where
 
 import Prelude
@@ -20,22 +22,15 @@ import Data.String as S
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 
--- | Parses a canonical `String` representation of a path into a `Path` value.
--- | Note that in order to be unambiguous, trailing directories should be
--- | marked with a trailing slash character (`'/'`).
-parsePosixPath
-  :: forall z
-   . (RelDir -> z)
-  -> (AbsDir -> z)
-  -> (RelFile -> z)
-  -> (AbsFile -> z)
-  -> z
-  -> String
-  -> z
-parsePosixPath relDir absDir relFile absFile z p
-  | p == "" = z
-  | p == "/" = absDir rootDir
-  | otherwise =
+newtype Parser = Parser (forall z. (RelDir -> z) -> (AbsDir -> z) -> (RelFile -> z) -> (AbsFile -> z) -> z -> String -> z)
+
+-- | A parser for POSIX paths.
+posixParser :: Parser
+posixParser = Parser \relDir absDir relFile absFile z ->
+  case _ of
+    "" -> z
+    "/" -> absDir rootDir
+    p ->
       let
         isAbs = S.take 1 p == "/"
         isFile = S.takeRight 1 p /= "/"
@@ -46,23 +41,6 @@ parsePosixPath relDir absDir relFile absFile z p
           true, false -> buildPath z rootDir (either absDir absDir) segs
           false, true -> buildPath z currentDir (either (const z) relFile) segs
           false, false -> buildPath z currentDir (either relDir relDir) segs
-
-
--- | Attempts to parse a relative file from a string.
-parsePosixRelFile :: String -> Maybe RelFile
-parsePosixRelFile = parsePosixPath (const Nothing) (const Nothing) Just (const Nothing) Nothing
-
--- | Attempts to parse an absolute file from a string.
-parsePosixAbsFile :: String -> Maybe AbsFile
-parsePosixAbsFile = parsePosixPath (const Nothing) (const Nothing) (const Nothing) Just Nothing
-
--- | Attempts to parse a relative directory from a string.
-parsePosixRelDir :: String -> Maybe RelDir
-parsePosixRelDir = parsePosixPath Just (const Nothing) (const Nothing) (const Nothing) Nothing
-
--- | Attempts to parse an absolute directory from a string.
-parsePosixAbsDir :: String -> Maybe AbsDir
-parsePosixAbsDir = parsePosixPath (const Nothing) Just (const Nothing) (const Nothing) Nothing
 
 buildPath
   :: forall z a b
@@ -86,3 +64,31 @@ buildPath z init k segs =
         | NES.toString name == ".." -> parentOf (go segs')
         | NES.toString name == "." -> go segs'
         | otherwise -> extendPath (go segs') (Name name)
+
+parsePath
+  :: forall z
+   . Parser
+  -> (RelDir -> z)
+  -> (AbsDir -> z)
+  -> (RelFile -> z)
+  -> (AbsFile -> z)
+  -> z
+  -> String
+  -> z
+parsePath (Parser p) = p
+
+-- | Attempts to parse a relative file.
+parseRelFile :: Parser -> String -> Maybe RelFile
+parseRelFile p = parsePath p (const Nothing) (const Nothing) Just (const Nothing) Nothing
+
+-- | Attempts to parse an absolute file.
+parseAbsFile :: Parser -> String -> Maybe AbsFile
+parseAbsFile p = parsePath p (const Nothing) (const Nothing) (const Nothing) Just Nothing
+
+-- | Attempts to parse a relative directory.
+parseRelDir :: Parser -> String -> Maybe RelDir
+parseRelDir p = parsePath p Just (const Nothing) (const Nothing) (const Nothing) Nothing
+
+-- | Attempts to parse an absolute directory.
+parseAbsDir :: Parser -> String -> Maybe AbsDir
+parseAbsDir p = parsePath p (const Nothing) Just (const Nothing) (const Nothing) Nothing

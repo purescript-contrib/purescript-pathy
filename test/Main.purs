@@ -6,9 +6,9 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, info)
 import Control.Monad.Eff.Exception (EXCEPTION, throw)
 import Data.Maybe (Maybe(..))
-import Data.Path.Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, relativeTo, rename, rootDir, unsafePrintPath, (<..>), (<.>), (</>))
+import Data.Path.Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, posixPrinter, relativeTo, rename, rootDir, unsafePrintPath, (<..>), (<.>), (</>))
 import Data.Path.Pathy.Gen as PG
-import Data.Path.Pathy.Parser (parsePosixAbsDir, parsePosixAbsFile, parsePosixRelDir, parsePosixRelFile)
+import Data.Path.Pathy.Parser (parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser)
 import Data.Path.Pathy.Sandboxed (printPath, sandbox, unsandbox)
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
@@ -28,7 +28,7 @@ test name actual expected= do
     else throw $ "Failed:\n    Expected: " <> (show expected) <> "\n    Actual:   " <> (show actual)
 
 test' :: forall a b eff. IsRelOrAbs a => IsDirOrFile b => String -> Path a b -> String -> Eff (console :: CONSOLE, exception :: EXCEPTION | eff) Unit
-test' n p s = test n (unsafePrintPath p) s
+test' n p s = test n (unsafePrintPath posixPrinter p) s
 
 pathPart ∷ Gen.Gen NonEmptyString
 pathPart = asNonEmptyString <$> Gen.suchThat QC.arbitrary (not <<< Str.null)
@@ -51,24 +51,24 @@ parsePrintCheck input parsed =
     then QC.Success
     else QC.Failed
       $ "`parse (print path) != Just path` for path: `" <> show input <> "` which was re-parsed into `" <> show parsed <> "`"
-      <> "\n\tPrinted path: " <> show (unsafePrintPath input)
-      <> "\n\tPrinted path': `" <> show (map unsafePrintPath parsed) <> "`"
+      <> "\n\tPrinted path: " <> show (unsafePrintPath posixPrinter input)
+      <> "\n\tPrinted path': `" <> show (map (unsafePrintPath posixPrinter) parsed) <> "`"
 
 parsePrintAbsDirPath :: Gen.Gen QC.Result
 parsePrintAbsDirPath = PG.genAbsDirPath <#> \path ->
-  parsePrintCheck path (parsePosixAbsDir $ unsafePrintPath path)
+  parsePrintCheck path (parseAbsDir posixParser $ unsafePrintPath posixPrinter path)
 
 parsePrintAbsFilePath :: Gen.Gen QC.Result
 parsePrintAbsFilePath = PG.genAbsFilePath <#> \path ->
-  parsePrintCheck path (parsePosixAbsFile $ unsafePrintPath path)
+  parsePrintCheck path (parseAbsFile posixParser $ unsafePrintPath posixPrinter path)
 
 parsePrintRelDirPath :: Gen.Gen QC.Result
 parsePrintRelDirPath = PG.genRelDirPath <#> \path ->
-  parsePrintCheck path (parsePosixRelDir $ unsafePrintPath path)
+  parsePrintCheck path (parseRelDir posixParser $ unsafePrintPath posixPrinter path)
 
 parsePrintRelFilePath :: Gen.Gen QC.Result
 parsePrintRelFilePath = PG.genRelFilePath <#> \path ->
-  parsePrintCheck path (parsePosixRelFile $ unsafePrintPath path)
+  parsePrintCheck path (parseRelFile posixParser $ unsafePrintPath posixPrinter path)
 
 checkRelative :: forall b. IsDirOrFile b => Gen.Gen (Path Abs b) -> Gen.Gen QC.Result
 checkRelative gen = do
@@ -84,10 +84,10 @@ checkRelative gen = do
       else
         QC.Failed
           $ "`relativeTo` property did not hold:"
-          <> "\n\tcp1:  " <> unsafePrintPath cp1
-          <> "\n\tcp2:  " <> unsafePrintPath cp2
-          <> "\n\trel:  " <> unsafePrintPath rel
-          <> "\n\tcp1': " <> unsafePrintPath cp1'
+          <> "\n\tcp1:  " <> unsafePrintPath posixPrinter cp1
+          <> "\n\tcp2:  " <> unsafePrintPath posixPrinter cp2
+          <> "\n\trel:  " <> unsafePrintPath posixPrinter rel
+          <> "\n\tcp1': " <> unsafePrintPath posixPrinter cp1'
 
 main :: QC.QC () Unit
 main = do
@@ -257,67 +257,67 @@ main = do
     (Just (rootDir </> dirBar </> dirFoo))
 
   test "sandbox - print relative path that goes above sandbox but returns to it"
-    (printPath <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
+    (printPath posixPrinter <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
     (Just "/bar/")
 
   test "sandbox - print absolute path that lies inside sandbox"
-    (printPath <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
+    (printPath posixPrinter <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
     (Just "/bar/foo/")
 
-  test "parsePosixRelFile - image.png"
-    (parsePosixRelFile "image.png")
+  test "parseRelFile - image.png"
+    (parseRelFile posixParser "image.png")
     (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
 
-  test "parsePosixRelFile - ./image.png"
-    (parsePosixRelFile "./image.png")
+  test "parseRelFile - ./image.png"
+    (parseRelFile posixParser "./image.png")
     (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
 
-  test "parsePosixRelFile - foo/image.png"
-    (parsePosixRelFile "foo/image.png")
+  test "parseRelFile - foo/image.png"
+    (parseRelFile posixParser "foo/image.png")
     (Just $ dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
-  test "parsePosixRelFile - ../foo/image.png"
-    (parsePosixRelFile "../foo/image.png")
+  test "parseRelFile - ../foo/image.png"
+    (parseRelFile posixParser "../foo/image.png")
     (Just $ currentDir <..> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
-  test "parsePosixAbsFile - /image.png"
-    (parsePosixAbsFile "/image.png")
+  test "parseAbsFile - /image.png"
+    (parseAbsFile posixParser "/image.png")
     (Just $ rootDir </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
-  test "parsePosixAbsFile - /foo/image.png"
-    (parsePosixAbsFile "/foo/image.png")
+  test "parseAbsFile - /foo/image.png"
+    (parseAbsFile posixParser "/foo/image.png")
     (Just $ rootDir </> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
 
-  test "parsePosixRelDir - empty string"
-    (parsePosixRelDir "")
+  test "parseRelDir - empty string"
+    (parseRelDir posixParser "")
     Nothing
 
-  test "parsePosixRelDir - ./../"
-    (parsePosixRelDir "./../")
+  test "parseRelDir - ./../"
+    (parseRelDir posixParser "./../")
     (Just $ currentDir <..> currentDir)
 
-  test "parsePosixRelDir - foo/"
-    (parsePosixRelDir "foo/")
+  test "parseRelDir - foo/"
+    (parseRelDir posixParser "foo/")
     (Just dirFoo)
 
-  test "parsePosixRelDir - foo/bar"
-    (parsePosixRelDir "foo/bar/")
+  test "parseRelDir - foo/bar"
+    (parseRelDir posixParser "foo/bar/")
     (Just $ dirFoo </> dirBar)
 
-  test "parsePosixRelDir - ./foo/bar"
-    (parsePosixRelDir "./foo/bar/")
+  test "parseRelDir - ./foo/bar"
+    (parseRelDir posixParser "./foo/bar/")
     (Just $ dirFoo </> dirBar)
 
-  test "parsePosixAbsDir - /"
-    (parsePosixAbsDir "/")
+  test "parseAbsDir - /"
+    (parseAbsDir posixParser "/")
     (Just $ rootDir)
 
-  test "parsePosixAbsDir - /foo/"
-    (parsePosixAbsDir "/foo/")
+  test "parseAbsDir - /foo/"
+    (parseAbsDir posixParser "/foo/")
     (Just $ rootDir </> dirFoo)
 
-  test "parsePosixAbsDir - /foo/bar"
-    (parsePosixAbsDir "/foo/bar/")
+  test "parseAbsDir - /foo/bar"
+    (parseAbsDir posixParser "/foo/bar/")
     (Just $ rootDir </> dirFoo </> dirBar)
 
 class IsSymbolNonEmpty sym where

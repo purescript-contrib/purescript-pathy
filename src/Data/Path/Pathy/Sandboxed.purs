@@ -5,13 +5,12 @@ module Data.Path.Pathy.Sandboxed
   , sandboxRoot
   , unsandbox
   , printPath
-  , printPath'
   ) where
 
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Data.Path.Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Printer, canonicalize, foldPath, onRelOrAbs, posixPrinter, relativeTo, rootDir, unsafePrintPath', (</>))
+import Data.Path.Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Printer, canonicalize, foldPath, onRelOrAbs, relativeTo, rootDir, unsafePrintPath, (</>))
 
 -- | The type for paths that have been sandboxed.
 data SandboxedPath a b = SandboxedPath (Path Abs Dir) (Path a b)
@@ -55,29 +54,18 @@ sandboxRoot (SandboxedPath root _) = root
 unsandbox :: forall a b. SandboxedPath a b -> Path a b
 unsandbox (SandboxedPath _ p) = p
 
--- | Prints a `SandboxedPath` into its canonical `String` representation. The
--- | printed path will always be absolute, as this is the only way to ensure
--- | the path is safely referring to the intended location.
-printPath
-  :: forall a b
-   . IsRelOrAbs a
-  => IsDirOrFile b
-  => SandboxedPath a b
-  -> String
-printPath = printPath' posixPrinter
-
 -- | Prints a `SandboxedPath` into its canonical `String` representation, using
 -- | the specified printer. The printed path will always be absolute, as this
 -- | is the only way to ensure the path is safely referring to the intended
 -- | location.
-printPath'
+printPath
   :: forall a b
    . IsRelOrAbs a
   => IsDirOrFile b
   => Printer
   -> SandboxedPath a b
   -> String
-printPath' r (SandboxedPath root p) =
-  unsafePrintPath'
+printPath r (SandboxedPath root p) =
+  unsafePrintPath
     r
     (onRelOrAbs (\_ p' -> canonicalize (root </> p')) (flip const) p)

@@ -29,7 +29,6 @@ module Data.Path.Pathy
   , relativeTo
   , refine
   , unsafePrintPath
-  , unsafePrintPath'
   , module Exports
   , module Data.Path.Pathy.Name
   , module Data.Path.Pathy.Phantom
@@ -44,7 +43,7 @@ import Data.Newtype (un)
 import Data.Path.Pathy.Name (Name(..)) as Exports
 import Data.Path.Pathy.Name (Name(..), alterExtension, extension)
 import Data.Path.Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, onRelOrAbs, kind DirOrFile, kind RelOrAbs)
-import Data.Path.Pathy.Printer (Printer, posixPrinter, printSegment)
+import Data.Path.Pathy.Printer (Printer, printSegment)
 import Data.Path.Pathy.Printer (Printer, posixPrinter, windowsPrinter) as Exports
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
@@ -299,28 +298,17 @@ refine f d = go
     go (ParentOf p) = ParentOf (go p)
     go (In p n) = In (go p) (onDirOrFile (_ <<< d) (_ <<< f) n)
 
--- | Prints a path exactly as-is. This is unsafe as the path may refer to a
--- | location it should not have access to. Path printing should almost always
--- | be performed with a `SandboxedPath`.
-unsafePrintPath
-  :: forall a b
-   . IsRelOrAbs a
-  => IsDirOrFile b
-  => Path a b
-  -> String
-unsafePrintPath = unsafePrintPath' posixPrinter
-
 -- | Prints a path exactly as-is using the specified `Printer`. This is unsafe
 -- | as the path may refer to a location it should not have access to. Path
 -- | printing should almost always be performed with a `SandboxedPath`.
-unsafePrintPath'
+unsafePrintPath
   :: forall a b
    . IsRelOrAbs a
   => IsDirOrFile b
   => Printer
   -> Path a b
   -> String
-unsafePrintPath' printer p = go p
+unsafePrintPath printer p = go p
   where
     go :: forall b'. IsDirOrFile b' => Path a b' -> String
     go =
