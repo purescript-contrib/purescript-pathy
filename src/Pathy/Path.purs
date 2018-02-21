@@ -36,10 +36,11 @@ import Data.Either (Either)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (un)
-import Data.String.NonEmpty (NonEmptyString)
+import Data.String.NonEmpty as NES
+import Data.Symbol (SProxy)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafeCrashWith)
-import Pathy.Name (Name(Name), alterExtension)
+import Pathy.Name (class IsName, Name(..), alterExtension, reflectName)
 import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, kind DirOrFile, kind RelOrAbs)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -106,16 +107,19 @@ currentDir :: Path Rel Dir
 currentDir = Init
 
 -- | Creates a path which points to a relative file of the specified name.
-file :: NonEmptyString -> Path Rel File
-file = file' <<< Name
+-- |
+-- | Instead of accepting a runtime value, this function accepts a type-level
+-- | string via a proxy, to ensure the constructed name is not empty.
+file :: forall s. IsName s => SProxy s -> Path Rel File
+file = file' <<< reflectName
 
 -- | Creates a path which points to a relative file of the specified name.
 file' :: Name File -> Path Rel File
 file' = In currentDir
 
 -- | Creates a path which points to a relative directory of the specified name.
-dir :: NonEmptyString -> Path Rel Dir
-dir = dir' <<< Name
+dir :: forall s. IsName s => SProxy s -> Path Rel Dir
+dir = dir' <<< reflectName
 
 -- | Creates a path which points to a relative directory of the specified name.
 dir' :: Name Dir -> Path Rel Dir
@@ -242,13 +246,15 @@ renameTraverse f = case _ of
   In p n -> In p <$> f n
   p -> pure p
 
--- | Sets the extension of a name.
+-- | Sets the extension on the terminal segment of a path. If the path is
+-- | `rootDir` / `currentDir` or some `parentOf p` this will have no effect. If
+-- | the passed string is empty, this will remove any existing extension.
 -- |
 -- | ```purescript
 -- | file "image" <.> "png"
 -- | ```
-setExtension :: forall a b. Path a b -> NonEmptyString -> Path a b
-setExtension p ext = rename (alterExtension (const (Just ext))) p
+setExtension :: forall a b. Path a b -> String -> Path a b
+setExtension p ext = rename (alterExtension (const (NES.fromString ext))) p
 
 infixl 6 setExtension as <.>
 

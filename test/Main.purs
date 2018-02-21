@@ -8,14 +8,11 @@ import Control.Monad.Eff.Exception (EXCEPTION, throw)
 import Data.Maybe (Maybe(..))
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
-import Data.Symbol (class IsSymbol, reflectSymbol) as Symbol
 import Data.Symbol (SProxy(..))
 import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, debugPrintPath, unsandbox, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
-import Type.Data.Boolean (False) as Symbol
-import Type.Data.Symbol (class Equals) as Symbol
 import Unsafe.Coerce (unsafeCoerce)
 
 test :: forall a eff. Show a => Eq a => String -> a -> a -> Eff (console :: CONSOLE, exception :: EXCEPTION | eff) Unit
@@ -35,13 +32,13 @@ pathPart = asNonEmptyString <$> Gen.suchThat QC.arbitrary (not <<< Str.null)
   asNonEmptyString = unsafeCoerce
 
 dirFoo :: Path Rel Dir
-dirFoo = dir (reflectNonEmpty $ SProxy :: SProxy "foo")
+dirFoo = dir (SProxy :: SProxy "foo")
 
 dirBar :: Path Rel Dir
-dirBar = dir (reflectNonEmpty $ SProxy :: SProxy "bar")
+dirBar = dir (SProxy :: SProxy "bar")
 
 dirBaz :: Path Rel Dir
-dirBaz = dir (reflectNonEmpty $ SProxy :: SProxy "baz")
+dirBaz = dir (SProxy :: SProxy "baz")
 
 parsePrintCheck :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> Maybe (Path a b) -> QC.Result
 parsePrintCheck input parsed =
@@ -121,17 +118,17 @@ main = do
   test' "(</>) - file with two parents"
     (dirFoo
       </> dirBar
-      </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
+      </> file (SProxy :: SProxy "image.png"))
     "./foo/bar/image.png"
 
   test' "(<.>) - file without extension"
-    (file (reflectNonEmpty $ SProxy :: SProxy "image")
-      <.> (reflectNonEmpty $ SProxy :: SProxy "png"))
+    (file (SProxy :: SProxy "image")
+      <.> "png")
     "./image.png"
 
   test' "(<.>) - file with extension"
-    (file (reflectNonEmpty $ SProxy :: SProxy "image.jpg")
-      <.> (reflectNonEmpty $ SProxy :: SProxy "png"))
+    (file (SProxy :: SProxy "image.jpg")
+      <.> "png")
     "./image.png"
 
   test' "printPath - ./../"
@@ -231,8 +228,8 @@ main = do
     "./foo/"
 
   test "rename - single level deep"
-    (rename (alterExtension (const Nothing)) (file (reflectNonEmpty $ SProxy :: SProxy "image.png")))
-    (file $ reflectNonEmpty $ SProxy :: SProxy "image")
+    (rename (alterExtension (const Nothing)) (file (SProxy :: SProxy "image.png")))
+    (file $ SProxy :: SProxy "image")
 
   test "sandbox - fail when relative path lies outside sandbox (above)"
     (sandbox (rootDir </> dirBar) (parentOf currentDir))
@@ -264,27 +261,27 @@ main = do
 
   test "parseRelFile - image.png"
     (parseRelFile posixParser "image.png")
-    (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
+    (Just $ file $ SProxy :: SProxy "image.png")
 
   test "parseRelFile - ./image.png"
     (parseRelFile posixParser "./image.png")
-    (Just $ file $ reflectNonEmpty $ SProxy :: SProxy "image.png")
+    (Just $ file $ SProxy :: SProxy "image.png")
 
   test "parseRelFile - foo/image.png"
     (parseRelFile posixParser "foo/image.png")
-    (Just $ dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
+    (Just $ dirFoo </> file (SProxy :: SProxy "image.png"))
 
   test "parseRelFile - ../foo/image.png"
     (parseRelFile posixParser "../foo/image.png")
-    (Just $ currentDir <..> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
+    (Just $ currentDir <..> dirFoo </> file (SProxy :: SProxy "image.png"))
 
   test "parseAbsFile - /image.png"
     (parseAbsFile posixParser "/image.png")
-    (Just $ rootDir </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
+    (Just $ rootDir </> file (SProxy :: SProxy "image.png"))
 
   test "parseAbsFile - /foo/image.png"
     (parseAbsFile posixParser "/foo/image.png")
-    (Just $ rootDir </> dirFoo </> file (reflectNonEmpty $ SProxy :: SProxy "image.png"))
+    (Just $ rootDir </> dirFoo </> file (SProxy :: SProxy "image.png"))
 
   test "parseRelDir - empty string"
     (parseRelDir posixParser "")
@@ -317,15 +314,6 @@ main = do
   test "parseAbsDir - /foo/bar"
     (parseAbsDir posixParser "/foo/bar/")
     (Just $ rootDir </> dirFoo </> dirBar)
-
-class IsSymbolNonEmpty sym where
-  reflectNonEmpty :: SProxy sym -> NonEmptyString
-
-instance isSymbolNonEmpty :: (Symbol.IsSymbol s, Symbol.Equals s "" Symbol.False) => IsSymbolNonEmpty s where
-  reflectNonEmpty _ = asNonEmpty $ Symbol.reflectSymbol (SProxy :: SProxy s)
-    where
-    asNonEmpty :: String -> NonEmptyString
-    asNonEmpty = unsafeCoerce
 
 printTestPath :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> String
 printTestPath p = debugPrintPath posixPrinter p

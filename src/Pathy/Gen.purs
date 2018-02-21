@@ -32,13 +32,13 @@ genAbsDirPath = Gen.sized \size → do
   newSize ← Gen.chooseInt 0 size
   Gen.resize (const newSize) do
     parts ∷ L.List NonEmptyString ← Gen.unfoldable genName
-    pure $ foldr (flip P.appendPath <<< P.dir) P.rootDir parts
+    pure $ foldr (flip P.appendPath <<< P.dir' <<< P.Name) P.rootDir parts
 
 genAbsFilePath :: forall m. MonadGen m => MonadRec m => m AbsFile
 genAbsFilePath = do
   dir ← genAbsDirPath
   file ← genName
-  pure $ dir </> P.file file
+  pure $ dir </> P.file' (P.Name file)
 
 genAbsAnyPath :: forall m. MonadGen m => MonadRec m => m AbsPath
 genAbsAnyPath = Gen.oneOf $ (Left <$> genAbsDirPath) :| [Right <$> genAbsFilePath]
@@ -48,13 +48,13 @@ genRelDirPath = Gen.sized \size → do
   newSize ← Gen.chooseInt 0 size
   Gen.resize (const newSize) do
     parts ∷ L.List NonEmptyString ← Gen.unfoldable genName
-    pure $ foldr (flip P.appendPath <<< P.dir) P.currentDir parts
+    pure $ foldr (flip P.appendPath <<< P.dir' <<< P.Name) P.currentDir parts
 
 genRelFilePath :: forall m. MonadGen m => MonadRec m => m RelFile
 genRelFilePath = do
   dir ← genRelDirPath
   file ← genName
-  pure $ dir </> P.file file
+  pure $ dir </> P.file' (P.Name file)
 
 genRelAnyPath :: forall m. MonadGen m => MonadRec m => m RelPath
 genRelAnyPath = Gen.oneOf $ (Left <$> genRelDirPath) :| [Right <$> genRelFilePath]
