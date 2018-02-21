@@ -170,17 +170,17 @@ canonicalize p = fromMaybe p (go p)
     go = case _ of
       Init ->
         Nothing
-      p@(ParentOf Init) ->
-        foldRelOrAbs (const Nothing) (const (Just Init)) p
-      ParentOf (In p _) ->
+      p'@(ParentOf Init) ->
+        foldRelOrAbs (const Nothing) (const (Just Init)) p'
+      ParentOf (In p' _) ->
         -- Coercion is safe as `ParentOf` can only appear where `b' ~ Dir`
-        Just $ (unsafeCoerce :: Path a Dir -> Path a b') (canonicalize p)
-      ParentOf p ->
-        case go p of
-          Just p' -> Just $ canonicalize (ParentOf p')
+        Just $ (unsafeCoerce :: Path a Dir -> Path a b') (canonicalize p')
+      ParentOf p' ->
+        case go p' of
+          Just p'' -> Just $ canonicalize (ParentOf p'')
           Nothing -> Nothing
-      In p f ->
-        flip In f <$> go p
+      In p' n ->
+        flip In n <$> go p'
 
 -- | A fold over `Path`s. Since `Path` has private constructors, this allows for
 -- | functions to be written over its constructors, similar to a total pattern
@@ -217,7 +217,7 @@ peelFile :: forall a. Path a File -> Tuple (Path a Dir) (Name File)
 peelFile = case _ of
   Init -> unsafeCrashWith "`Init` in Pathy.peelFile (this should be impossible)"
   ParentOf _ -> unsafeCrashWith "`ParentOf` in Pathy.peelFile (this should be impossible)"
-  In dir name -> Tuple dir name
+  In p n -> Tuple p n
 
 -- | Retrieves the name of the terminal segment in a path. Returns `Nothing` if
 -- | the path is `rootDir` / `currentDir` or some `parentOf p`.
@@ -231,7 +231,7 @@ fileName :: forall a. Path a File -> Name File
 fileName = case _ of
   Init -> unsafeCrashWith "`Init` in Pathy.fileName (this should be impossible)"
   ParentOf _ -> unsafeCrashWith "`ParentOf` in Pathy.fileName (this should be impossible)"
-  In _ name -> name
+  In _ n -> n
 
 -- | Attempts to rename the terminal segment of a path. If the path is
 -- | `rootDir` / `currentDir` or some `parentOf p` this will have no effect.
@@ -248,7 +248,7 @@ renameTraverse
   -> Path a b
   -> f (Path a b)
 renameTraverse f = case _ of
-  In p name -> In p <$> f name
+  In p n -> In p <$> f n
   p -> pure p
 
 -- | Sets the extension of a name.
@@ -269,10 +269,10 @@ relativeTo p rp = coeB $ step Init (canonicalize (coeD p)) (canonicalize rp)
     step acc = case _, _ of
       p', rp' | p' == rp' -> acc
       Init, In rp' _ -> step (ParentOf acc) Init rp'
-      In p' name, Init -> In (step acc p' Init) name
-      In p' name, rp'
-        | p' == rp' -> In acc name
-        | otherwise -> In (step acc p' rp') name
+      In p' n, Init -> In (step acc p' Init) n
+      In p' n, rp'
+        | p' == rp' -> In acc n
+        | otherwise -> In (step acc p' rp') n
       _, _ ->
         unsafeCrashWith "`ParentOf` in Pathy.relativeTo (this should be impossible)"
     -- Unfortunately we can't avoid some coercions in this function unless
@@ -297,7 +297,7 @@ refine f d = go
     go :: forall a' b'. IsDirOrFile b' => Path a' b' -> Path a' b'
     go Init = Init
     go (ParentOf p) = ParentOf (go p)
-    go (In p name) = In (go p) (onDirOrFile (_ <<< d) (_ <<< f) name)
+    go (In p n) = In (go p) (onDirOrFile (_ <<< d) (_ <<< f) n)
 
 -- | Prints a path exactly as-is. This is unsafe as the path may refer to a
 -- | location it should not have access to. Path printing should almost always
