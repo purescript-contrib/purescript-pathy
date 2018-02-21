@@ -1,4 +1,4 @@
-module Data.Path.Pathy
+module Pathy
   ( Path
   , AnyPath
   , RelPath
@@ -30,8 +30,8 @@ module Data.Path.Pathy
   , refine
   , unsafePrintPath
   , module Exports
-  , module Data.Path.Pathy.Name
-  , module Data.Path.Pathy.Phantom
+  , module Pathy.Name
+  , module Pathy.Phantom
   ) where
 
 import Prelude
@@ -40,15 +40,15 @@ import Data.Either (Either)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (un)
-import Data.Path.Pathy.Name (Name(..)) as Exports
-import Data.Path.Pathy.Name (Name(..), alterExtension, extension)
-import Data.Path.Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, onRelOrAbs, kind DirOrFile, kind RelOrAbs)
-import Data.Path.Pathy.Printer (Printer, printSegment)
-import Data.Path.Pathy.Printer (Printer, posixPrinter, windowsPrinter) as Exports
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafeCrashWith)
+import Pathy.Name (Name(..), alterExtension, extension)
+import Pathy.Name (Name(..)) as Exports
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, onRelOrAbs, kind DirOrFile, kind RelOrAbs)
+import Pathy.Printer (Printer, posixPrinter, windowsPrinter) as Exports
+import Pathy.Printer (Printer, printSegment)
 import Unsafe.Coerce (unsafeCoerce)
 
 -- | A type that describes a Path. All flavors of paths are described by this

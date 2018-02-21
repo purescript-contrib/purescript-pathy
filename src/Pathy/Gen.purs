@@ -1,4 +1,4 @@
-module Data.Path.Pathy.Gen
+module Pathy.Gen
   ( genAbsDirPath
   , genAbsFilePath
   , genAbsAnyPath
@@ -17,10 +17,10 @@ import Data.Either (Either(..))
 import Data.Foldable (foldr)
 import Data.List as L
 import Data.NonEmpty ((:|))
-import Data.Path.Pathy (AbsPath, AbsFile, AbsDir, RelDir, RelFile, RelPath, (</>))
-import Data.Path.Pathy as P
 import Data.String.Gen as SG
 import Data.String.NonEmpty (NonEmptyString, cons)
+import Pathy (AbsPath, AbsFile, AbsDir, RelDir, RelFile, RelPath, (</>))
+import Pathy as P
 
 genName ∷ ∀ m. MonadGen m ⇒ MonadRec m ⇒ m NonEmptyString
 genName = cons <$> genChar <*> SG.genString genChar

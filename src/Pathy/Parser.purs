@@ -1,4 +1,4 @@
-module Data.Path.Pathy.Parser
+module Pathy.Parser
   ( Parser(..)
   , posixParser
   , parsePath
@@ -15,12 +15,12 @@ import Data.Either (Either(..), either)
 import Data.List (List(..), (:))
 import Data.List as L
 import Data.Maybe (Maybe(..))
-import Data.Path.Pathy (AbsDir, AbsFile, Path, RelDir, RelFile, currentDir, extendPath, parentOf, rootDir)
-import Data.Path.Pathy.Name (Name(..))
-import Data.Path.Pathy.Phantom (Dir)
 import Data.String as S
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
+import Pathy (AbsDir, AbsFile, Path, RelDir, RelFile, currentDir, extendPath, parentOf, rootDir)
+import Pathy.Name (Name(..))
+import Pathy.Phantom (Dir)
 
 newtype Parser = Parser (forall z. (RelDir -> z) -> (AbsDir -> z) -> (RelFile -> z) -> (AbsFile -> z) -> z -> String -> z)
 

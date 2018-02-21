@@ -1,4 +1,4 @@
-module Data.Path.Pathy.Printer where
+module Pathy.Printer where
 
 import Prelude
 

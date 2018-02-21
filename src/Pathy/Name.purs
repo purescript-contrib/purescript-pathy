@@ -1,13 +1,13 @@
-module Data.Path.Pathy.Name where
+module Pathy.Name where
 
 import Prelude
 
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (class Newtype)
-import Data.Path.Pathy.Phantom (kind DirOrFile)
 import Data.String as S
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
+import Pathy.Phantom (kind DirOrFile)
 
 -- | A type used for both directory and file names, indexed by `DirOrFile`.
 newtype Name (n :: DirOrFile) = Name NonEmptyString

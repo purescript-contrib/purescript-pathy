@@ -1,4 +1,4 @@
-module Data.Path.Pathy.Phantom where
+module Pathy.Phantom where
 
 import Prelude
 

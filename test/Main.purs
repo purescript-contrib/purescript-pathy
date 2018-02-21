@@ -6,14 +6,14 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, info)
 import Control.Monad.Eff.Exception (EXCEPTION, throw)
 import Data.Maybe (Maybe(..))
-import Data.Path.Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, posixPrinter, relativeTo, rename, rootDir, unsafePrintPath, (<..>), (<.>), (</>))
-import Data.Path.Pathy.Gen as PG
-import Data.Path.Pathy.Parser (parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser)
-import Data.Path.Pathy.Sandboxed (printPath, sandbox, unsandbox)
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
-import Data.Symbol (SProxy(..))
 import Data.Symbol (class IsSymbol, reflectSymbol) as Symbol
+import Data.Symbol (SProxy(..))
+import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, posixPrinter, relativeTo, rename, rootDir, unsafePrintPath, (<..>), (<.>), (</>))
+import Pathy.Gen as PG
+import Pathy.Parser (parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser)
+import Pathy.Sandboxed (printPath, sandbox, unsandbox)
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
 import Type.Data.Boolean (False) as Symbol
