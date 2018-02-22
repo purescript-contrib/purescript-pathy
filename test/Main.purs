@@ -6,11 +6,16 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, info)
 import Control.Monad.Eff.Exception (EXCEPTION, throw)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (un)
+import Data.NonEmpty ((:|))
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
+import Data.String.NonEmpty as NES
 import Data.Symbol (SProxy(..))
-import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Path, Rel, alterExtension, canonicalize, currentDir, dir, file, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, debugPrintPath, unsandbox, (<..>), (<.>), (</>))
+import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, canonicalize, currentDir, debugPrintPath, dir, extension, file, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, unsandbox, (<..>), (<.>), (</>), joinName, splitName)
 import Pathy.Gen as PG
+import Pathy.Name (reflectName)
+import Test.QuickCheck ((===))
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
 import Unsafe.Coerce (unsafeCoerce)
@@ -65,6 +70,31 @@ parsePrintRelFilePath :: Gen.Gen QC.Result
 parsePrintRelFilePath = PG.genRelFilePath <#> \path ->
   parsePrintCheck path (parseRelFile posixParser $ printTestPath path)
 
+genAmbigiousName :: forall a. Gen.Gen (Name a)
+genAmbigiousName = 
+  let
+    genNES = PG.genName <#> un Name
+  in
+    map Name $ Gen.oneOf $ genNES :|
+      [ genNES <#> \a -> a <> (NES.singleton '.')
+      , genNES <#> \a -> (NES.singleton '.') <> a
+      , pure (NES.singleton '.')
+      , do
+          a <- genNES
+          b <- genNES
+          pure $ a <> (NES.singleton '.') <> b
+      ]
+  
+checkAlterExtensionId :: Gen.Gen QC.Result
+checkAlterExtensionId = do
+  n <- genAmbigiousName
+  pure $ alterExtension id n === id n
+
+checkJoinSplitNameId :: Gen.Gen QC.Result
+checkJoinSplitNameId = do
+  n <- genAmbigiousName
+  pure $ joinName (splitName n) === id n
+
 checkRelative :: forall b. IsDirOrFile b => Gen.Gen (Path Abs b) -> Gen.Gen QC.Result
 checkRelative gen = do
   p1 <- gen
@@ -92,6 +122,8 @@ main = do
   info "checking `parse <<< print` for `RelFile`" *> QC.quickCheck parsePrintRelFilePath
   info "checking `relativeTo` for `AbsDir`" *> QC.quickCheck (checkRelative PG.genAbsDirPath)
   info "checking `relativeTo` for `AbsFile`" *> QC.quickCheck (checkRelative PG.genAbsFilePath)
+  info "checking `joinName <<< splitName === id`" *> QC.quickCheck checkJoinSplitNameId
+  info "checking `alterExtension id === id`" *> QC.quickCheck checkAlterExtensionId
 
   -- Should not compile:
   -- test
@@ -230,6 +262,22 @@ main = do
   test "rename - single level deep"
     (rename (alterExtension (const Nothing)) (file (SProxy :: SProxy "image.png")))
     (file $ SProxy :: SProxy "image")
+
+  test """extension (Name ".foo")    == Nothing"""
+    (extension (reflectName $ SProxy :: SProxy ".foo"))
+    (Nothing)
+  test """extension (Name "foo.")    == Nothing"""
+    (extension (reflectName $ SProxy :: SProxy "foo."))
+    (Nothing)
+  test """extension (Name "foo")    == Nothing"""
+    (extension (reflectName $ SProxy :: SProxy "foo"))
+    (Nothing)
+  test """extension (Name ".")       == Nothing"""
+    (extension (reflectName $ SProxy :: SProxy "."))
+    (Nothing)
+  test """extension (Name "foo.baz") == (Just "baz")"""
+    (extension (reflectName $ SProxy :: SProxy "foo.baz"))
+    (NES.fromString "baz")
 
   test "sandbox - fail when relative path lies outside sandbox (above)"
     (sandbox (rootDir </> dirBar) (parentOf currentDir))
