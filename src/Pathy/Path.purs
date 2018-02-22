@@ -118,6 +118,9 @@ file' :: Name File -> Path Rel File
 file' = In currentDir
 
 -- | Creates a path which points to a relative directory of the specified name.
+-- |
+-- | Instead of accepting a runtime value, this function accepts a type-level
+-- | string via a proxy, to ensure the constructed name is not empty.
 dir :: forall s. IsName s => SProxy s -> Path Rel Dir
 dir = dir' <<< reflectName
 
