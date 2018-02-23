@@ -207,9 +207,14 @@ foldPath r f g = case _ of
 
 -- | Peels off the last directory and the terminal file or directory name
 -- | from the path. Returns `Nothing` if the path is `rootDir` / `currentDir` or
--- | some `parentOf p`.
+-- | some `parentOf p`, so you might wanna [canonicalize](#v:canonicalize) first,
+-- | or use [`peel'`](#v:peel').
 peel :: forall a b. Path a b -> Maybe (Tuple (Path a Dir) (Name b))
 peel = foldPath Nothing (const Nothing) (\p n -> Just (Tuple p n))
+
+-- | Same as [`peel`](#v:peel) but input is first [canonicalized](#v:canonicalize).
+peel' :: forall a b. IsRelOrAbs a => Path a b -> Maybe (Tuple (Path a Dir) (Name b))
+peel' = canonicalize >>> peel
 
 -- | Peels off the last director and terminal file from a path. Unlike the
 -- | general `peel` function this is guaranteed to return a result, as `File`
