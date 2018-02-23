@@ -22,7 +22,15 @@ import Pathy.Path (AbsDir, AbsFile, Path, RelDir, RelFile, currentDir, extendPat
 import Pathy.Name (Name(..))
 import Pathy.Phantom (Dir)
 
-newtype Parser = Parser (forall z. (RelDir -> z) -> (AbsDir -> z) -> (RelFile -> z) -> (AbsFile -> z) -> z -> String -> z)
+newtype Parser = Parser 
+  ( forall z
+   . (RelDir -> z)
+  -> (AbsDir -> z)
+  -> (RelFile -> z)
+  -> (AbsFile -> z)
+  -> z
+  -> String
+  -> z)
 
 -- | A parser for POSIX paths.
 posixParser :: Parser
