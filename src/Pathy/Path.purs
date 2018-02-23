@@ -176,7 +176,7 @@ canonicalize p = fromMaybe p (go p)
       ParentOf (In p' _) ->
         -- Coercion is safe as `ParentOf` can only appear where `b' ~ Dir`
         Just $ (unsafeCoerce :: Path a Dir -> Path a b') (canonicalize p')
-      ParentOf p' ->
+      ParentOf p'@(ParentOf _) ->
         case go p' of
           Just p'' -> Just $ canonicalize (ParentOf p'')
           Nothing -> Nothing
