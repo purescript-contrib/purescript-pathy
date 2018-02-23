@@ -363,5 +363,9 @@ main = do
     (parseAbsDir posixParser "/foo/bar/")
     (Just $ rootDir </> dirFoo </> dirBar)
 
+  test "parseRelDir - /foo/././//bar/"
+    (parseAbsDir posixParser "/foo/././//bar/")
+    (Just $ rootDir </> dirFoo </> dirBar)
+
 printTestPath :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> String
 printTestPath p = debugPrintPath posixPrinter p

@@ -42,6 +42,7 @@ posixParser = Parser \relDir absDir relFile absFile z ->
       let
         isAbs = S.take 1 p == "/"
         isFile = S.takeRight 1 p /= "/"
+        -- NOTE: if we have `/foo/././//bar/` we will parse that as if it was `/foo/bar/`
         segs = L.fromFoldable $ A.reverse $ A.mapMaybe NES.fromString $ S.split (S.Pattern "/") p
       in
         case isAbs, isFile of
