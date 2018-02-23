@@ -6,16 +6,6 @@
 
 A type-safe abstraction for platform-independent file system paths.
 
-# Example
-
-```purescript
-fullPath = rootDir </> dir "baz" </> file "foo.png"
-```
-
-See the [tests file](/test/Main.purs) for various example usages more.
-
-# Getting Started
-
 ## Installation
 
 ```bash
@@ -23,7 +13,7 @@ bower install purescript-pathy
 ```
 
 ```purescript
-import Data.Path.Pathy
+import Pathy
 ```
 
 ## Introduction
@@ -34,9 +24,8 @@ Many path libraries provide a single abstraction to deal with file system paths.
 
  * The distinction between relative and absolute paths.
  * The distinction between paths denoting file resources and paths denoting directories.
- * The distinction between paths that are secure (sandboxed to some location in the file system) and those that are insecure.
 
-*Pathy* also uses a single abstraction for file system paths, called `Path`, but uses *phantom types* to keep track of the above distinctions.
+Pathy also uses a single abstraction for file system paths, called `Path`, but uses *phantom types* to keep track of the above distinctions.
 
 This approach lets you write code that performs type-safe composition of relative, absolute, file, and directory paths, and makes sure you never use paths in an unsafe fashion. Bogus and insecure operations simply aren't allowed by the type system!
 
@@ -46,48 +35,50 @@ Many paths come from user-input or configuration data. Pathy can parse such stri
 
 Building path liberals is easy. You will typically build path literals from the following components:
 
- * `rootDir`    &mdash; The root directory of an absolute path.
- * `currentDir` &mdash; The current directory (AKA the "working directory"), useful for building relative paths.
- * `file`       &mdash; A file (in the current directory).
- * `dir`        &mdash; A directory (in the current directory).
- * `(</>)`      &mdash; Adds a relative path to the end of a (relative or absolute) path.
- * `(<.>)`      &mdash; Sets the extension of a file path.
- * `(<..>)`     &mdash; Ascends one level in a directory, then descends into the specified relative path.
+ * `rootDir` – The root directory of an absolute path.
+ * `currentDir` – The current directory (AKA the "working directory"), useful for building relative paths.
+ * `file` – A file (in the current directory).
+ * `dir` – A directory (in the current directory).
+ * `(</>)` – Adds a relative path to the end of a (relative or absolute) path.
+ * `(<.>)` – Sets the extension of a file path.
+ * `(<..>)` – Ascends one level in a directory, then descends into the specified relative path.
 
-For example:
+All path segments (`file` / `dir`) names are required to be non-empty. This is enforced by `Name` being constructed from a `NonEmptyString`. At compile time, we can have provably non-empty strings by using `Symbol`s and a bit of type class trickery:
 
-```purescript
-let
-  path1 = rootDir    </> dir "foo" </> dir "bar" </> file "baz.boo"
-  path2 = currentDir </> dir "foo"
-in do
-  trace $ show $ printPath path1
-  trace $ show $ printPath path2
+``` purescript
+dirFoo :: Name Dir
+dirFoo = dir (SProxy :: SProxy "foo")
 ```
 
-Pathy doesn't let you create combinators that don't make sense, such as:
+Here we're using a symbol proxy (`SProxy`) and then typing it to explicitly carry the name that we want to use for our path at runtime. There is also a `dir'` and `file'` variation on the function that accepts normal `Name` values, so if you are not constructing a path at compile-time, you'd be using these instead.
+
+Some example compile-time path constructions:
 
 ```purescript
-rootDir    </> rootDir
+path1 = rootDir </> dir (SProxy :: SProxy "foo") </> dir (SProxy :: SProxy "bar") </> file (SProxy :: SProxy "baz.boo")
+path2 = currentDir </> dir (SProxy :: SProxy "foo")
+```
+
+Thanks to the phantom type parameters, Pathy doesn't let you create path combinations that don't make sense. The following examples will be rejected at compile time:
+
+```purescript
+rootDir </> rootDir
 currentDir </> rootDir
-file "foo" </> file "bar"
-file "foo" </> dir "bar"
+file (SProxy :: SProxy "foo") </> file (SProxy :: SProxy "bar")
+file (SProxy :: SProxy "foo") </> dir (SProxy :: SProxy "bar")
 ```
-
-All these combinations will be disallowed at compile time!
 
 ### The Path Type
 
-The `Path a b s` type has three type parameters:
+The `Path a b` type has two type parameters:
 
- * `a` &mdash; This may be `Abs` or `Rel`, indicating whether the path is absolute or relative.
- * `b` &mdash; This may be `Dir` or `File`, indicating whether the path is a file or directory.
- * `s` &mdash; This may be `Sandboxed` or `Unsandboxed`, indicating whether the path has been sandboxed yet or not.
+ * `a` – This may be `Abs` or `Rel`, indicating whether the path is absolute or relative.
+ * `b` – This may be `Dir` or `File`, indicating whether the path is a file or directory.
 
 You should try to make the `Path` functions that you write as generic as possible. If you have a function that only cares if a path refers to a file, then you can write it like this:
 
 ```purescript
-myFunction :: forall a s. Path a File s -> ...
+myFunction :: forall a. Path a File -> ...
 myFunction p = ...
 ```
 
@@ -97,38 +88,34 @@ By universally quantifying over the type parameters you don't care about, you en
 
 To parse a string into a `Path`, you can use the `parsePath` function, which expects you to handle four cases:
 
- * `Path Rel File Unsandboxed`
- * `Path Abs File Unsandboxed`
- * `Path Rel Dir Unsandboxed`
- * `Path Abs Dir Unsandboxed`
+ * `Path Rel File`
+ * `Path Abs File`
+ * `Path Rel Dir`
+ * `Path Abs Dir`
 
 If you need a specific case, you can use helper functions such as `parseRelFile`, which return a `Maybe`.
 
-### Print Paths to Strings
-
-You can print any path as a `String` by calling the `printPath` function.
-
-For security reasons, you can only perform this operation if you have *sandboxed* the path. Sandboxing a path ensures that users cannot escape a sandbox directory that you specify; it's the right thing to do!
+The `parsePath` function also expects a `Parser` argument so that different path formats can be parsed into the common `Path` type.
 
 ### Sandboxing
 
-Pathy makes it easy to create relative paths, even paths that ascend into parent directories of relative paths.
-
-With this power comes danger: if you parse a user string, the user may be able to escape any arbitrary directory.
+Pathy makes it easy to create relative paths, even paths that ascend into parent directories of relative paths. With this power comes danger: if you parse a user string, the user may be able to escape any arbitrary directory.
 
 Pathy solves this security problem by *disallowing* conversion from a `Path` to a `String` until the `Path` has been *sandboxed*.
 
 To sandbox a path, you just call `sandbox` and provide the sandbox directory, as well as the path to sandbox:
 
 ```purescript
-sandbox (rootDir </> dir "foo") (rootDir </> dir "foo" </> dir "bar")
+sandbox
+  (rootDir </> dir (SProxy :: SProxy "foo")) -- sandbox root
+  (rootDir </> dir (SProxy :: SProxy "foo") </> dir (SProxy :: SProxy "bar")) -- path to sandbox
 ```
 
-This returns a `Maybe`, which is either equal to `Nothing` if the tainted path escapes the sandbox, or `Just p`, where `p` is the tainted path, relative to the sandbox path.
+This returns a `Maybe`, which is `Nothing` if the tainted path escapes the sandbox.
 
-After you have sandboxed a foreign path, you may call `printPath` on it. There's no need to remember this rule because it's enforced at compile-time by phantom types!
+After you have sandboxed a foreign path, you may call `printPath` on it, which will print the path absolutely.
 
-All the path literals you build by hand are automatically sandboxed, unless you call `parentDir'` on them.
+There is also the option to `unsafePrintPath`. This is labelled as being unsafe as it may be depending on how it is used - for example, if a path was sandboxed against some path other than the current working directory, but then used when launching a command in the current working directory, it may still refer to a location that it should not have access to.
 
 ### Renaming, Transforming, Etc.
 
