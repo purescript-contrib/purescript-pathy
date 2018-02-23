@@ -169,7 +169,10 @@ canonicalize p = fromMaybe p (go p)
       Init ->
         Nothing
       p'@(ParentOf Init) ->
-        foldRelOrAbs (const Nothing) (const (Just Init)) p'
+        foldRelOrAbs
+          (const Nothing)
+          (const (Just Init)) -- This normalizes `/../` case into `/`
+          p'
       ParentOf (In p' _) ->
         -- Coercion is safe as `ParentOf` can only appear where `b' ~ Dir`
         Just $ (unsafeCoerce :: Path a Dir -> Path a b') (canonicalize p')
