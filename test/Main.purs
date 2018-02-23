@@ -12,7 +12,7 @@ import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Data.Symbol (SProxy(..))
-import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, canonicalize, currentDir, debugPrintPath, dir, extension, file, joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
+import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, canonicalize, currentDir, debugPrintPath, dir, extension, file, joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, sandboxAny, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
 import Pathy.Name (reflectName)
 import Test.QuickCheck ((===))
@@ -71,7 +71,7 @@ parsePrintRelFilePath = PG.genRelFilePath <#> \path ->
   parsePrintCheck path (parseRelFile posixParser $ printTestPath path)
 
 genAmbigiousName :: forall a. Gen.Gen (Name a)
-genAmbigiousName = 
+genAmbigiousName =
   let
     genNES = PG.genName <#> un Name
   in
@@ -84,7 +84,7 @@ genAmbigiousName =
           b <- genNES
           pure $ a <> (NES.singleton '.') <> b
       ]
-  
+
 checkAlterExtensionId :: Gen.Gen QC.Result
 checkAlterExtensionId = do
   n <- genAmbigiousName
@@ -146,7 +146,7 @@ main = do
   test' "(</>) - two directories"
     (dirFoo </> dirBar)
     "./foo/bar/"
-  
+
   test "windowsPrinter"
     (printWindowsPath $ rootDir </> dir (SProxy :: SProxy "C") </> dirBar)
     "C:\\bar\\"
@@ -170,6 +170,22 @@ main = do
   test' "printPath - ./../"
     (parentOf currentDir)
     "./../"
+
+  test """printPath windowsPrinter - C:\Users\Default\"""
+    (printPath windowsPrinter $ sandboxAny $ rootDir </> dir (SProxy :: SProxy "C") </> dir (SProxy :: SProxy "Users") </> dir (SProxy :: SProxy "Default"))
+    """C:\Users\Default\"""
+
+  test """printPath posixPrinter - /C/Users/Default/"""
+    (printPath posixPrinter $ sandboxAny $ rootDir </> dir (SProxy :: SProxy "C") </> dir (SProxy :: SProxy "Users") </> dir (SProxy :: SProxy "Default"))
+    """/C/Users/Default/"""
+
+  test """printPath windowsPrinter - \"""
+    (printPath windowsPrinter $ sandboxAny rootDir)
+    """\"""
+
+  test """printPath posixPrinter - /"""
+    (printPath posixPrinter $ sandboxAny rootDir)
+    """/"""
 
   test' "(</>) - ./../foo/"
     (parentOf currentDir </> dirFoo)
