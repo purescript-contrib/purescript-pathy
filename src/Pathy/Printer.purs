@@ -15,15 +15,16 @@ module Pathy.Printer
 import Prelude
 
 import Data.Foldable (fold)
-import Data.Maybe (Maybe, maybe)
+import Data.Maybe (Maybe(..), maybe)
 import Data.Monoid (class Monoid)
 import Data.Newtype (class Newtype, un, unwrap)
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Partial.Unsafe (unsafePartial)
+import Pathy.Name (Name)
 import Pathy.Path (Path, canonicalize, foldPath, (</>))
-import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, foldDirOrFile, foldRelOrAbs)
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Dir, foldDirOrFile, foldRelOrAbs, kind DirOrFile, kind RelOrAbs)
 import Pathy.Sandboxed (SandboxedPath, sandboxRoot, unsandbox)
 
 -- | A `Printer` defines options for printing paths.
@@ -45,7 +46,7 @@ type Printer =
 -- | A printer for POSIX paths.
 posixPrinter :: Printer
 posixPrinter =
-  { root: maybe "/" (\name -> "/" <> NES.toString name)
+  { root: maybe "/" (\name -> "/" <> NES.toString (un Escaper posixEscaper name))
   , current: NES.singleton '.'
   , up: NES.singleton '.' <> NES.singleton '.'
   , sep: NES.singleton '/'
@@ -114,17 +115,31 @@ printPathRep
   => Printer
   -> Path a b
   -> String
-printPathRep printer p = go p
+printPathRep printer inputPath = go inputPath
   where
     go :: forall b'. IsDirOrFile b' => Path a b' -> String
-    go =
-      foldPath
-        (NES.toString (foldRelOrAbs (const (printer.current <> printer.sep)) (const printer.sep) p))
-        (\p' -> go p' <> NES.toString (printer.up <> printer.sep))
-        (\p' ->
-            foldDirOrFile
-              (\d -> go p' <> printSegment printer d <> NES.toString printer.sep)
-              (\f -> go p' <> printSegment printer f))
+    go = foldPath caseCurrent caseParentOf caseIn
+
+    isAbs :: Boolean
+    isAbs = foldRelOrAbs (const false) (const true) inputPath
+
+    caseCurrent :: String
+    caseCurrent = if isAbs
+      then printer.root Nothing
+      else NES.toString $ printer.current <> printer.sep
+
+    caseParentOf :: Path a Dir -> String
+    caseParentOf p = go p <> NES.toString (printer.up <> printer.sep)
+
+    caseIn :: forall b'. IsDirOrFile b' => Path a Dir -> Name b' -> String
+    caseIn p name = name # foldDirOrFile
+      (\dirName -> p # foldPath
+        (if isAbs
+          then printer.root (Just $ unwrap dirName) <> NES.toString printer.sep
+          else caseCurrent <> printSegment printer dirName <> NES.toString printer.sep)
+        (\p' -> caseParentOf p' <> printSegment printer dirName <> NES.toString printer.sep)
+        (\p' n' -> caseIn p' n' <> printSegment printer dirName <> NES.toString printer.sep))
+      (\fileName -> go p <> printSegment printer fileName)
 
 -- | Prints a name as a `String` using the escaper from the specified printer.
 printSegment :: forall name. Newtype name NonEmptyString => Printer -> name -> String

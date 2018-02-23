@@ -12,7 +12,7 @@ import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Data.Symbol (SProxy(..))
-import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, canonicalize, currentDir, debugPrintPath, dir, extension, file, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, unsandbox, (<..>), (<.>), (</>), joinName, splitName)
+import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, canonicalize, currentDir, debugPrintPath, dir, extension, file, joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
 import Pathy.Name (reflectName)
 import Test.QuickCheck ((===))
@@ -146,6 +146,10 @@ main = do
   test' "(</>) - two directories"
     (dirFoo </> dirBar)
     "./foo/bar/"
+  
+  test "windowsPrinter"
+    (printWindowsPath $ rootDir </> dir (SProxy :: SProxy "C") </> dirBar)
+    "C:\\bar\\"
 
   test' "(</>) - file with two parents"
     (dirFoo
@@ -369,3 +373,6 @@ main = do
 
 printTestPath :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> String
 printTestPath p = debugPrintPath posixPrinter p
+
+printWindowsPath :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> String
+printWindowsPath p = debugPrintPath windowsPrinter p
