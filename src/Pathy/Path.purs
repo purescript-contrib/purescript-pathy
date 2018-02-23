@@ -205,14 +205,9 @@ foldPath r f g = case _ of
 
 -- | Peels off the last directory and the terminal file or directory name
 -- | from the path. Returns `Nothing` if the path is `rootDir` / `currentDir` or
--- | some `parentOf p`, so you might wanna [canonicalize](#v:canonicalize) first,
--- | or use [`peel'`](#v:peel').
+-- | some `parentOf p`, so you might wanna [`canonicalize`](#v:canonicalize) path first.
 peel :: forall a b. Path a b -> Maybe (Tuple (Path a Dir) (Name b))
 peel = foldPath Nothing (const Nothing) (\p n -> Just (Tuple p n))
-
--- | Same as [`peel`](#v:peel) but input is first [canonicalized](#v:canonicalize).
-peel' :: forall a b. IsRelOrAbs a => Path a b -> Maybe (Tuple (Path a Dir) (Name b))
-peel' = canonicalize >>> peel
 
 -- | Peels off the last director and terminal file from a path. Unlike the
 -- | general `peel` function this is guaranteed to return a result, as `File`
@@ -256,12 +251,16 @@ renameTraverse f = case _ of
   p -> pure p
 
 -- | Sets the extension on the terminal segment of a path. If the path is
--- | `rootDir` / `currentDir` or some `parentOf p` this will have no effect. If
--- | the passed string is empty, this will remove any existing extension.
+-- | `rootDir` / `currentDir` or some `parentOf p` this will have no effect,
+-- | so in some cases you might need to [`canonicalize`](#v:canonicalize)
+-- | path first. If the passed string is empty, this will remove any existing
+-- |  extension.
 -- |
 -- | ```purescript
 -- | file "image" <.> "png"
 -- | ```
+-- | See [`splitName`](Pathy.Name#v:splitName) and [`alterExtension`](Pathy.Name#v:alterExtension)
+-- | fore more examples.
 setExtension :: forall a b. Path a b -> String -> Path a b
 setExtension p ext = rename (alterExtension (const (NES.fromString ext))) p
 
