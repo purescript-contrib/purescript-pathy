@@ -10,6 +10,7 @@ module Pathy.Parser
 
 import Prelude
 
+import Data.Array (foldl)
 import Data.Array as A
 import Data.Either (Either(..), either)
 import Data.List (List(..), (:))
@@ -18,8 +19,8 @@ import Data.Maybe (Maybe(..))
 import Data.String as S
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
-import Pathy.Path (AbsDir, AbsFile, Path, RelDir, RelFile, currentDir, extendPath, parentOf, rootDir)
 import Pathy.Name (Name(..))
+import Pathy.Path (AbsDir, AbsFile, Path, RelDir, RelFile, currentDir, extendPath, parentOf, rootDir)
 import Pathy.Phantom (Dir)
 
 newtype Parser = Parser 
@@ -43,13 +44,18 @@ posixParser = Parser \relDir absDir relFile absFile z ->
         isAbs = S.take 1 p == "/"
         isFile = S.takeRight 1 p /= "/"
         -- NOTE: if we have `/foo/././//bar/` we will parse that as if it was `/foo/bar/`
-        segs = L.fromFoldable $ A.reverse $ A.mapMaybe NES.fromString $ S.split (S.Pattern "/") p
+        segs = asReversedList $ A.mapMaybe NES.fromString $ S.split (S.Pattern "/") p
       in
         case isAbs, isFile of
           true, true -> buildPath z rootDir (either (const z) absFile) segs
           true, false -> buildPath z rootDir (either absDir absDir) segs
           false, true -> buildPath z currentDir (either (const z) relFile) segs
           false, false -> buildPath z currentDir (either relDir relDir) segs
+
+-- optimised version of `Array.reverse >>> List.fromFoldable`
+asReversedList :: forall a. Array a -> L.List a
+asReversedList =
+  foldl (flip L.Cons) L.Nil
 
 buildPath
   :: forall z a b
