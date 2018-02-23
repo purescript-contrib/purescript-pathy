@@ -269,7 +269,12 @@ setExtension p ext = rename (alterExtension (const (NES.fromString ext))) p
 
 infixl 6 setExtension as <.>
 
--- | Makes a path relative to a reference path.
+-- | Makes a path relative to a reference path. This function is best
+-- | explaned using this property:
+-- |
+-- | ```purescript
+-- | a == r </> a `relativeTo` r
+-- | ```
 relativeTo :: forall b. Path Abs b -> Path Abs Dir -> Path Rel b
 relativeTo p rp = coeB $ step Init (canonicalize (coeD p)) (canonicalize rp)
   where
