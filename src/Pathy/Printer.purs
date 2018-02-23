@@ -23,7 +23,7 @@ import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Partial.Unsafe (unsafePartial)
 import Pathy.Path (Path, canonicalize, foldPath, (</>))
-import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, foldDirOrFile, foldRelOrAbs, onRelOrAbs)
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, foldDirOrFile, foldRelOrAbs)
 import Pathy.Sandboxed (SandboxedPath, sandboxRoot, unsandbox)
 
 -- | A `Printer` defines options for printing paths.
@@ -80,7 +80,7 @@ printPath r sp =
   in
     printPathRep
       r
-      (onRelOrAbs (\_ p' -> canonicalize (root </> p')) (flip const) p)
+      (foldRelOrAbs (\p' -> canonicalize (root </> p')) id p)
 
 -- | Prints a `SandboxedPath` into its canonical `String` representation, using
 -- | the specified printer. This will print a relative path if `b ~ Rel`, which
