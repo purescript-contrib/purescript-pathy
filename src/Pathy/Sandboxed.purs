@@ -9,7 +9,7 @@ module Pathy.Sandboxed
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Pathy.Path (Path, canonicalize, foldPath, relativeTo, rootDir, (</>))
+import Pathy.Path (Path, foldPath, relativeTo, rootDir, (</>))
 import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, onRelOrAbs)
 
 -- | The type for paths that have been sandboxed.
@@ -44,7 +44,7 @@ sandbox root = map (SandboxedPath root) <<< onRelOrAbs (go (root </> _)) (go id)
 -- | This should only be used for situations where a path is already constrained
 -- | within a system so that access to `/` is safe - for instance, in URIs.
 sandboxAny :: forall a b. IsRelOrAbs a => Path a b -> SandboxedPath a b
-sandboxAny p = SandboxedPath rootDir (canonicalize p)
+sandboxAny p = SandboxedPath rootDir p
 
 -- | Returns the location a `SandboxedPath` was sandboxed to.
 sandboxRoot :: forall a b. SandboxedPath a b -> Path Abs Dir

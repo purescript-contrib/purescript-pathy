@@ -12,7 +12,7 @@ import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Data.Symbol (SProxy(..))
-import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, canonicalize, currentDir, debugPrintPath, dir, extension, file, joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, sandboxAny, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
+import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, currentDir, debugPrintPath, dir, extension, file, joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, sandboxAny, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
 import Pathy.Name (reflectName)
 import Test.QuickCheck ((===))
@@ -99,20 +99,18 @@ checkRelative :: forall b. IsDirOrFile b => Gen.Gen (Path Abs b) -> Gen.Gen QC.R
 checkRelative gen = do
   p1 <- gen
   p2 <- PG.genAbsDirPath
-  let cp1 = canonicalize p1
-  let cp2 = canonicalize p2
-  let rel = cp1 `relativeTo` cp2
-  let cp1' = canonicalize (cp2 </> rel)
+  let rel = p1 `relativeTo` p2
+  let p1' = p2 </> rel
   pure
-    if cp1 == cp1'
+    if p1 == p1'
       then QC.Success
       else
         QC.Failed
           $ "`relativeTo` property did not hold:"
-          <> "\n\tcp1:  " <> printTestPath cp1
-          <> "\n\tcp2:  " <> printTestPath cp2
+          <> "\n\tp1:  " <> printTestPath p1
+          <> "\n\tp2:  " <> printTestPath p2
           <> "\n\trel:  " <> printTestPath rel
-          <> "\n\tcp1': " <> printTestPath cp1'
+          <> "\n\tp1': " <> printTestPath p1'
 
 main :: QC.QC () Unit
 main = do
@@ -193,7 +191,7 @@ main = do
 
   test' "parentOf - ./../foo/../"
     ((parentOf currentDir </> dirFoo) </> (parentOf currentDir))
-    "./../foo/../"
+    "./../"
 
   test' "(<..>) - ./../"
     (currentDir <..> currentDir)
@@ -205,22 +203,30 @@ main = do
 
   test' "(<..>) - ./../foo/../"
     ((currentDir <..> dirFoo) <..> currentDir)
-    "./../foo/../"
+    "./../"
 
-  test' "canonicalize - 1 down, 1 up"
-    (canonicalize $ parentOf $ dirFoo)
+  test' "./foo/../ = ./"
+    (parentOf dirFoo)
     "./"
 
-  test' "canonicalize - 2 down, 2 up"
-    (canonicalize (parentOf (parentOf (dirFoo </> dirBar))))
+  test' "./foo/bar/../../ = ./"
+    ((parentOf (parentOf (dirFoo </> dirBar))))
     "./"
 
-  test' "canonicalize - 2 up from root"
-    (canonicalize (parentOf (parentOf rootDir)))
+  test' "/../../ = /"
+    ((parentOf (parentOf rootDir)))
     "/"
 
-  test "canonicalize /foo/../bar/ = /bar"
-    (canonicalize (rootDir </> dirFoo <..> dirBar))
+  test "/foo/../bar/ = /bar"
+    ((rootDir </> dirFoo <..> dirBar))
+    (rootDir </> dirBar)
+
+  test "/foo/bar/ </> ../bar/ = /foo/bar/"
+    ((rootDir </> dirFoo </> dirBar) </> (currentDir <..> dirBar))
+    (rootDir </> dirFoo </> dirBar)
+
+  test "/foo/bar/ </> ../../bar/ = /bar/"
+    ((rootDir </> dirFoo </> dirBar) </> (currentDir <..> currentDir <..> currentDir </> dirBar))
     (rootDir </> dirBar)
 
   test "relativeTo rootDir rootDir = currentDir"

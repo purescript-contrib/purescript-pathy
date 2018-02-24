@@ -21,9 +21,9 @@ import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Pathy.Name (Name(..))
 import Pathy.Path (AbsDir, AbsFile, Path, RelDir, RelFile, currentDir, extendPath, parentOf, rootDir)
-import Pathy.Phantom (Dir)
+import Pathy.Phantom (class IsRelOrAbs, Dir)
 
-newtype Parser = Parser 
+newtype Parser = Parser
   ( forall z
    . (RelDir -> z)
   -> (AbsDir -> z)
@@ -59,7 +59,8 @@ asReversedList =
 
 buildPath
   :: forall z a b
-  . z
+   . IsRelOrAbs a
+  => z
   -> Path a Dir
   -> (Either (Path a Dir) (Path a b) -> z)
   -> List NonEmptyString

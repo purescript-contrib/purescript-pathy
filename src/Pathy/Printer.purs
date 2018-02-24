@@ -23,8 +23,8 @@ import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Partial.Unsafe (unsafePartial)
 import Pathy.Name (Name)
-import Pathy.Path (Path, canonicalize, foldPath, (</>))
-import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Dir, foldDirOrFile, foldRelOrAbs, kind DirOrFile, kind RelOrAbs)
+import Pathy.Path (Path, foldPath, (</>))
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Dir, Rel, foldDirOrFile, foldRelOrAbs, kind DirOrFile, kind RelOrAbs)
 import Pathy.Sandboxed (SandboxedPath, sandboxRoot, unsandbox)
 
 -- | A `Printer` defines options for printing paths.
@@ -81,7 +81,7 @@ printPath r sp =
   in
     printPathRep
       r
-      (foldRelOrAbs (\p' -> canonicalize (root </> p')) id p)
+      (foldRelOrAbs (root </> _) id p)
 
 -- | Prints a `SandboxedPath` into its canonical `String` representation, using
 -- | the specified printer. This will print a relative path if `b ~ Rel`, which
@@ -117,7 +117,7 @@ printPathRep
   -> String
 printPathRep printer inputPath = go inputPath
   where
-    go :: forall b'. IsDirOrFile b' => Path a b' -> String
+    go :: forall a' b'. IsRelOrAbs a' => IsDirOrFile b' => Path a' b' -> String
     go = foldPath caseCurrent caseParentOf caseIn
 
     isAbs :: Boolean
@@ -128,10 +128,10 @@ printPathRep printer inputPath = go inputPath
       then printer.root Nothing
       else NES.toString $ printer.current <> printer.sep
 
-    caseParentOf :: Path a Dir -> String
+    caseParentOf :: Path Rel Dir -> String
     caseParentOf p = go p <> NES.toString (printer.up <> printer.sep)
 
-    caseIn :: forall b'. IsDirOrFile b' => Path a Dir -> Name b' -> String
+    caseIn :: forall a' b'. IsRelOrAbs a' => IsDirOrFile b' => Path a' Dir -> Name b' -> String
     caseIn p name = name # foldDirOrFile
       (\dirName -> p # foldPath
         (if isAbs

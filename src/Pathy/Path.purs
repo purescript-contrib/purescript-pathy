@@ -17,7 +17,6 @@ module Pathy.Path
   , extendPath
   , appendPath, (</>)
   , parentAppend, (<..>)
-  , canonicalize
   , foldPath
   , peel
   , peelFile
@@ -34,14 +33,14 @@ import Prelude
 
 import Data.Either (Either)
 import Data.Identity (Identity(..))
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (un)
 import Data.String.NonEmpty as NES
 import Data.Symbol (SProxy)
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafeCrashWith)
 import Pathy.Name (class IsName, Name(..), alterExtension, reflectName)
-import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, kind DirOrFile, kind RelOrAbs)
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, onRelOrAbs, kind DirOrFile, kind RelOrAbs)
 import Unsafe.Coerce (unsafeCoerce)
 
 -- | A type that describes a Path. All flavors of paths are described by this
@@ -56,14 +55,10 @@ import Unsafe.Coerce (unsafeCoerce)
 -- | `currentDir`, `file`, `dir`,  `(</>)`, and `parsePath`.
 -- |
 -- | This ADT allows invalid paths (e.g. paths inside files), but there is no
--- | possible way for such paths to be constructed by user-land code. The only
--- | "invalid path" that may be constructed is using the `parentOf` function,
--- | e.g. `parentOf rootDir`, or by parsing an equivalent string such as
--- | `/../`, but such paths may not be rendered to strings until they are first
--- | sandboxed to some directory.
+-- | possible way for such paths to be constructed by user-land code.
 data Path (a :: RelOrAbs) (b :: DirOrFile)
   = Init
-  | ParentOf (Path a Dir)
+  | ParentOf (Path Rel Dir)
   | In (Path a Dir) (Name b)
 
 derive instance eqPath :: Eq (Path a b)
@@ -129,8 +124,13 @@ dir' :: Name Dir -> Path Rel Dir
 dir' = In currentDir
 
 -- | Creates a path that points to the parent directory of the specified path.
-parentOf :: forall a. Path a Dir -> Path a Dir
-parentOf p = ParentOf p
+-- |
+-- | Calling `parentOf` on `rootDir` will return `rootDir`.
+parentOf :: forall a. IsRelOrAbs a => Path a Dir -> Path a Dir
+parentOf =
+  onRelOrAbs
+    (\coe p -> maybe (ParentOf p) (coe <<< fst) (peel p))
+    (\coe -> coe <<< maybe Init fst <<< peel)
 
 -- | Extends a path with a file or directory under the current path.
 extendPath :: forall a b. Path a Dir -> Name b -> Path a b
@@ -138,12 +138,12 @@ extendPath p = In p
 
 -- | Given a directory path, appends a relative path to extend the original
 -- | path.
-appendPath :: forall a b. Path a Dir -> Path Rel b -> Path a b
+appendPath :: forall a b. IsRelOrAbs a => Path a Dir -> Path Rel b -> Path a b
 appendPath = case _, _ of
   Init, Init -> Init
   ParentOf p, Init -> ParentOf (p </> Init)
   In p (Name d), Init -> In (p </> Init) (Name d)
-  p1, ParentOf p2 -> ParentOf (p1 </> p2)
+  p1, ParentOf p2 -> (unsafeCoerce :: Path a Dir -> Path a b) $ parentOf (p1 </> p2)
   p1, In p2 n -> In (p1 </> p2) n
 
 infixl 6 appendPath as </>
@@ -152,34 +152,12 @@ infixl 6 appendPath as </>
 -- | the specified path.
 -- |
 -- | ```purescript
--- | canonicalize (rootDir </> dir "foo" <..> dir "bar") = rootDir </> dir "bar"
+-- | rootDir </> dir "foo" <..> dir "bar" = rootDir </> dir "bar"
 -- | ```
-parentAppend :: forall a b. Path a Dir -> Path Rel b -> Path a b
+parentAppend :: forall a b. IsRelOrAbs a => Path a Dir -> Path Rel b -> Path a b
 parentAppend d p = parentOf d </> p
 
 infixl 6 parentAppend as <..>
-
--- | Canonicalizes a path, by reducing things in the form `/x/../` to just
--- | `/x/`. Paths like `/../` will be normalized to `/`.
-canonicalize :: forall a b. IsRelOrAbs a => Path a b -> Path a b
-canonicalize p = fromMaybe p (go p)
-  where
-    go :: forall b'. Path a b' -> Maybe (Path a b')
-    go = case _ of
-      Init ->
-        Nothing
-      p'@(ParentOf Init) ->
-        foldRelOrAbs
-          (const Nothing)
-          (const (Just Init)) -- This normalizes `/../` case into `/`
-          p'
-      ParentOf (In p' _) ->
-        -- Coercion is safe as `ParentOf` can only appear where `b' ~ Dir`
-        Just $ (unsafeCoerce :: Path a Dir -> Path a b') (canonicalize p')
-      ParentOf p'@(ParentOf _) ->
-        canonicalize <<< ParentOf <$> go p'
-      In p' n ->
-        flip In n <$> go p'
 
 -- | A fold over `Path`s. Since `Path` has private constructors, this allows for
 -- | functions to be written over its constructors, similar to a total pattern
@@ -194,7 +172,7 @@ canonicalize p = fromMaybe p (go p)
 foldPath
   :: forall a b r
    . r
-  -> (Path a Dir -> r)
+  -> (Path Rel Dir -> r)
   -> (Path a Dir -> Name b -> r)
   -> Path a b
   -> r
@@ -205,7 +183,7 @@ foldPath r f g = case _ of
 
 -- | Peels off the last directory and the terminal file or directory name
 -- | from the path. Returns `Nothing` if the path is `rootDir` / `currentDir` or
--- | some `parentOf p`, so you might wanna [`canonicalize`](#v:canonicalize) path first.
+-- | a relative path that is ascending (`../`)
 peel :: forall a b. Path a b -> Maybe (Tuple (Path a Dir) (Name b))
 peel = foldPath Nothing (const Nothing) (\p n -> Just (Tuple p n))
 
@@ -227,19 +205,18 @@ name = foldPath Nothing (const Nothing) (const Just)
 -- | this is guaranteed to return a result, as `File` paths are known to have a
 -- | name.
 fileName :: forall a. Path a File -> Name File
-fileName = case _ of
-  Init -> unsafeCrashWith "`Init` in Pathy.fileName (this should be impossible)"
-  ParentOf _ -> unsafeCrashWith "`ParentOf` in Pathy.fileName (this should be impossible)"
-  In _ n -> n
+fileName = snd <<< peelFile
 
 -- | Attempts to rename the terminal segment of a path. If the path is
--- | `rootDir` / `currentDir` or some `parentOf p` this will have no effect.
+-- | `rootDir` / `currentDir` or a relative path that is ascending (`../`) this
+-- | will have no effect.
 rename :: forall a b. (Name b -> Name b) -> Path a b -> Path a b
 rename f = un Identity <<< renameTraverse (pure <<< f)
 
 -- | Attempts to rename the terminal segment of a path using a function that
 -- | returns the result in some `Applicative`. If the path is `rootDir` /
--- | `currentDir` or some `parentOf p` this will have no effect.
+-- | `currentDir` or a relative path that is ascending (`../`) this will
+-- | have no effect.
 renameTraverse
   :: forall f a b
    . Applicative f
@@ -251,10 +228,8 @@ renameTraverse f = case _ of
   p -> pure p
 
 -- | Sets the extension on the terminal segment of a path. If the path is
--- | `rootDir` / `currentDir` or some `parentOf p` this will have no effect,
--- | so in some cases you might need to [`canonicalize`](#v:canonicalize)
--- | path first. If the passed string is empty, this will remove any existing
--- |  extension.
+-- | `rootDir` / `currentDir` or a relative path that is ascending (`../`) this
+-- | will have no effect.
 -- |
 -- | ```purescript
 -- | file "image" <.> "png"
@@ -273,7 +248,7 @@ infixl 6 setExtension as <.>
 -- | a == r </> a `relativeTo` r
 -- | ```
 relativeTo :: forall b. Path Abs b -> Path Abs Dir -> Path Rel b
-relativeTo p rp = coeB $ step Init (canonicalize (coeD p)) (canonicalize rp)
+relativeTo p = coeB <<< step Init (coeD p)
   where
     step :: Path Rel Dir -> Path Abs Dir -> Path Abs Dir -> Path Rel Dir
     step acc = case _, _ of
