@@ -5,8 +5,10 @@ module Pathy.Path
   , AbsPath
   , RelDir
   , AbsDir
+  , AnyDir
   , RelFile
   , AbsFile
+  , AnyFile
   , rootDir
   , currentDir
   , dir
@@ -85,12 +87,18 @@ type RelDir = Path Rel Dir
 -- | A type describing a directory whose location is absolutely specified.
 type AbsDir = Path Abs Dir
 
+-- | A type describing a absolute or relative directory path.
+type AnyDir = Either AbsDir RelDir
+
 -- | A type describing a file whose location is given relative to some other,
 -- | unspecified directory (referred to as the "current directory").
 type RelFile = Path Rel File
 
 -- | A type describing a file whose location is absolutely specified.
 type AbsFile = Path Abs File
+
+-- | A type describing a absolute or relative file path.
+type AnyFile = Either AbsFile RelFile
 
 -- | The root directory, which can be used to define absolutely-located resources.
 rootDir :: Path Abs Dir
