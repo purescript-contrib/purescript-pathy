@@ -58,7 +58,7 @@ splitName (Name nameIn) =
 joinName :: forall n. { name :: NonEmptyString, ext :: Maybe NonEmptyString } -> Name n
 joinName { name, ext } = Name $ case ext of
   Nothing -> name
-  Just ext -> name <> NES.singleton '.' <> ext
+  Just ext' -> name <> NES.singleton '.' <> ext'
 
 -- | Retrieves the extension of a name. also see [`splitName`](#v:splitName)
 -- | 
