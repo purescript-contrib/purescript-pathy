@@ -5,14 +5,15 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, info)
 import Control.Monad.Eff.Exception (EXCEPTION, throw)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (un)
 import Data.NonEmpty ((:|))
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Data.Symbol (SProxy(..))
-import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, currentDir, debugPrintPath, dir, extension, file, joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, sandboxAny, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
+import Data.Tuple (Tuple(..))
+import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, currentDir, debugPrintPath, dir, extension, file, in', joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, peel, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, sandboxAny, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
 import Pathy.Name (reflectName)
 import Test.QuickCheck ((===))
@@ -95,6 +96,11 @@ checkJoinSplitNameId = do
   n <- genAmbigiousName
   pure $ joinName (splitName n) === id n
 
+checkPeelIn :: forall b. IsDirOrFile b => Gen.Gen (Path Abs b) -> Gen.Gen QC.Result
+checkPeelIn gen = do
+  p <- gen
+  pure $ p === maybe p (\(Tuple r n) -> r </> in' n) (peel p)
+
 checkRelative :: forall b. IsDirOrFile b => Gen.Gen (Path Abs b) -> Gen.Gen QC.Result
 checkRelative gen = do
   p1 <- gen
@@ -120,6 +126,8 @@ main = do
   info "checking `parse <<< print` for `RelFile`" *> QC.quickCheck parsePrintRelFilePath
   info "checking `relativeTo` for `AbsDir`" *> QC.quickCheck (checkRelative PG.genAbsDirPath)
   info "checking `relativeTo` for `AbsFile`" *> QC.quickCheck (checkRelative PG.genAbsFilePath)
+  info "checking `p === maybe p (\\(Tuple r n) -> r </> in' n) (peel p)` for `AbsDir`" *> QC.quickCheck (checkPeelIn PG.genAbsDirPath)
+  info "checking `p === maybe p (\\(Tuple r n) -> r </> in' n) (peel p)` for `AbsFile`" *> QC.quickCheck (checkPeelIn PG.genAbsFilePath)
   info "checking `joinName <<< splitName === id`" *> QC.quickCheck checkJoinSplitNameId
   info "checking `alterExtension id === id`" *> QC.quickCheck checkAlterExtensionId
 

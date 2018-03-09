@@ -15,6 +15,7 @@ module Pathy.Path
   , dir'
   , file
   , file'
+  , in'
   , parentOf
   , extendPath
   , appendPath, (</>)
@@ -118,7 +119,7 @@ file = file' <<< reflectName
 
 -- | Creates a path which points to a relative file of the specified name.
 file' :: Name File -> Path Rel File
-file' = In currentDir
+file' = in'
 
 -- | Creates a path which points to a relative directory of the specified name.
 -- |
@@ -129,7 +130,18 @@ dir = dir' <<< reflectName
 
 -- | Creates a path which points to a relative directory of the specified name.
 dir' :: Name Dir -> Path Rel Dir
-dir' = In currentDir
+dir' = in'
+
+-- | Creates a path which points to a relative directory or file of the specified name.
+-- | In most cases [`dir'`](#v:dir') or [`file'`](#v:file') should be used instead,
+-- | but it's still there in case the segment type is going to be determined based
+-- | on some type variable.
+-- |
+-- | ``` purescript
+-- | p == maybe p (\(Tuple r n) -> r </> in' n) (peel p)
+-- | ```
+in' :: forall a. Name a -> Path Rel a
+in' = In currentDir
 
 -- | Creates a path that points to the parent directory of the specified path.
 -- |
