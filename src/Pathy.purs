@@ -11,5 +11,5 @@ import Pathy.Path (AbsDir, AbsFile, AbsPath, AnyPath, AnyDir, AnyFile, Path, Rel
 import Pathy.Name (Name(..), joinName, splitName, alterExtension, extension)
 import Pathy.Printer (Escaper(..), Printer, debugPrintPath, posixPrinter, printPath, unsafePrintPath, windowsPrinter)
 import Pathy.Parser (Parser(..), parseAbsDir, parseAbsFile, parsePath, parseRelDir, parseRelFile, posixParser)
-import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel)
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldRelOrAbs, onRelOrAbs, foldDirOrFile, onDirOrFile)
 import Pathy.Sandboxed (SandboxedPath, sandbox, sandboxAny, sandboxRoot, unsandbox)
