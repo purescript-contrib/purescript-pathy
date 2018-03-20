@@ -6,6 +6,8 @@ module Pathy.Gen
   , genRelFilePath
   , genRelAnyPath
   , genName
+  , genDirName
+  , genFileName
   ) where
 
 import Prelude
@@ -20,13 +22,19 @@ import Data.List as L
 import Data.NonEmpty ((:|))
 import Data.String.Gen as SG
 import Data.String.NonEmpty (cons)
-import Pathy (AbsDir, AbsFile, AbsPath, Dir, RelDir, RelFile, RelPath, (</>))
+import Pathy (AbsDir, AbsFile, AbsPath, Dir, File, RelDir, RelFile, RelPath, (</>))
 import Pathy as P
 
 genName ∷ ∀ m a. MonadGen m ⇒ MonadRec m ⇒ m (P.Name a)
 genName = map P.Name $ cons <$> genChar <*> SG.genString genChar
   where
   genChar = Gen.oneOf $ CG.genDigitChar :| [CG.genAlpha]
+
+genDirName :: ∀ m. MonadGen m ⇒ MonadRec m ⇒ m (P.Name Dir)
+genDirName = genName
+
+genFileName :: ∀ m. MonadGen m ⇒ MonadRec m ⇒ m (P.Name File)
+genFileName = genName
 
 genAbsDirPath :: forall m. MonadGen m => MonadRec m => m AbsDir
 genAbsDirPath = Gen.sized \size → do
