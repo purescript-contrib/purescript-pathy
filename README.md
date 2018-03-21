@@ -33,7 +33,7 @@ Many paths come from user-input or configuration data. Pathy can parse such stri
 
 ### Paths Literals
 
-Building path liberals is easy. You will typically build path literals from the following components:
+Building path literals is easy. You will typically build path literals from the following components:
 
  * `rootDir` – The root directory of an absolute path.
  * `currentDir` – The current directory (AKA the "working directory"), useful for building relative paths.
