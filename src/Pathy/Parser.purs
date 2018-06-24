@@ -16,9 +16,11 @@ import Data.Either (Either(..), either)
 import Data.List (List(..), (:))
 import Data.List as L
 import Data.Maybe (Maybe(..))
-import Data.String as S
+import Data.String (split) as S
+import Data.String.CodeUnits (take, takeRight) as S
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
+import Data.String.Pattern (Pattern(..)) as S
 import Pathy.Name (Name(..))
 import Pathy.Path (AbsDir, AbsFile, Path, RelDir, RelFile, currentDir, extendPath, parentOf, rootDir)
 import Pathy.Phantom (class IsRelOrAbs, Dir)

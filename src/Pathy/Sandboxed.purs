@@ -29,7 +29,7 @@ sandbox
   => Path Abs Dir
   -> Path a b
   -> Maybe (SandboxedPath a b)
-sandbox root = map (SandboxedPath root) <<< onRelOrAbs (go (root </> _)) (go id)
+sandbox root = map (SandboxedPath root) <<< onRelOrAbs (go (root </> _)) (go identity)
   where
     go :: forall p. (p -> Path Abs b) -> (p -> Path a b) -> p -> Maybe (Path a b)
     go f coe p =

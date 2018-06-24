@@ -6,7 +6,7 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype)
 import Data.String as S
 import Data.String.NonEmpty (NonEmptyString)
-import Data.String.NonEmpty as NES
+import Data.String.NonEmpty.CodeUnits as NES
 import Data.Symbol (class IsSymbol, SProxy(..))
 import Data.Symbol (reflectSymbol) as Symbol
 import Pathy.Phantom (kind DirOrFile)
@@ -34,7 +34,7 @@ instance showName :: Show (Name a) where
 -- | splitName (Name "foo.baz") == { name: "foo",  extension: Just "baz" }
 -- | ```
 -- | _Note, in real code all strings from this examples would be `NonEmptyString`._
--- | 
+-- |
 -- | Also for any `Name` this property holds:
 -- | ```purescript
 -- | joinName <<< splitName = id
@@ -61,7 +61,7 @@ joinName { name, ext } = Name $ case ext of
   Just ext' -> name <> NES.singleton '.' <> ext'
 
 -- | Retrieves the extension of a name. also see [`splitName`](#v:splitName)
--- | 
+-- |
 -- | ```purescript
 -- | extension (Name ".foo")    == Nothing
 -- | extension (Name "foo.")    == Nothing
@@ -76,7 +76,7 @@ extension = splitName >>> _.ext
 -- | or modified. see [`splitName`](#v:splitName) and [`joinName`](#v:joinName)
 -- | for how a `Name` is split into name and extention part and joined back
 -- | into a `Name`.
--- | 
+-- |
 -- | Also for any `Name` this property holds:
 -- | ```purescript
 -- | alterExtension id = id
@@ -89,7 +89,7 @@ alterExtension
 alterExtension f n =
   let spn = splitName n
   in joinName spn{ext = f spn.ext}
-  
+
 -- | A class for creating `Name` values from type-level strings. This allows us
 -- | to guarantee that a name is not empty at compile-time.
 class IsName sym where

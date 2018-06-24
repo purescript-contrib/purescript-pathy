@@ -16,16 +16,18 @@ import Prelude
 
 import Data.Foldable (fold)
 import Data.Maybe (Maybe(..), maybe)
-import Data.Monoid (class Monoid)
 import Data.Newtype (class Newtype, un, unwrap)
-import Data.String as Str
+import Data.String (Pattern(..)) as Str
+import Data.String.CodeUnits (singleton) as Str
 import Data.String.NonEmpty (NonEmptyString)
-import Data.String.NonEmpty as NES
+import Data.String.NonEmpty (NonEmptyReplacement(..), replaceAll, toString, unsafeFromString) as NES
+import Data.String.NonEmpty.CodeUnits (cons, singleton) as NES
 import Partial.Unsafe (unsafePartial)
 import Pathy.Name (Name)
 import Pathy.Path (Path, foldPath, (</>))
 import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Dir, Rel, foldDirOrFile, foldRelOrAbs, kind DirOrFile, kind RelOrAbs)
 import Pathy.Sandboxed (SandboxedPath, sandboxRoot, unsandbox)
+import Prim.TypeError (class Warn, Text)
 
 -- | A `Printer` defines options for printing paths.
 -- |
@@ -81,7 +83,7 @@ printPath r sp =
   in
     printPathRep
       r
-      (foldRelOrAbs (root </> _) id p)
+      (foldRelOrAbs (root </> _) identity p)
 
 -- | Prints a `SandboxedPath` into its canonical `String` representation, using
 -- | the specified printer. This will print a relative path if `b ~ Rel`, which
@@ -100,7 +102,7 @@ unsafePrintPath r sp = printPathRep r (unsandbox sp)
 -- | compile time as a reminder!
 debugPrintPath
   :: forall a b
-   . Warn "debugPrintPath usage"
+   . Warn (Text "debugPrintPath usage")
   => IsRelOrAbs a
   => IsDirOrFile b
   => Printer
@@ -155,7 +157,7 @@ instance semigroupEscaper :: Semigroup Escaper where
   append (Escaper e1) (Escaper e2) = Escaper (e1 <<< e2)
 
 instance monoidEscaper :: Monoid Escaper where
-  mempty = Escaper id
+  mempty = Escaper identity
 
 -- | An escaper that replaces all `'/'` characters in a name with `'-'`s.
 slashEscaper :: Escaper

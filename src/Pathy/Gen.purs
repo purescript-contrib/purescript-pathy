@@ -21,7 +21,7 @@ import Data.Foldable (foldr)
 import Data.List as L
 import Data.NonEmpty ((:|))
 import Data.String.Gen as SG
-import Data.String.NonEmpty (cons)
+import Data.String.NonEmpty.CodeUnits (cons)
 import Pathy (AbsDir, AbsFile, AbsPath, Dir, File, RelDir, RelFile, RelPath, (</>))
 import Pathy as P
 
