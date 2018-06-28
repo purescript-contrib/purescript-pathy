@@ -2,17 +2,18 @@ module Test.Main where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, info)
-import Control.Monad.Eff.Exception (EXCEPTION, throw)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (un)
 import Data.NonEmpty ((:|))
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
-import Data.String.NonEmpty as NES
+import Data.String.NonEmpty (fromString) as NES
+import Data.String.NonEmpty.CodeUnits (singleton) as NES
 import Data.Symbol (SProxy(..))
 import Data.Tuple (Tuple(..))
+import Effect (Effect)
+import Effect.Console (info)
+import Effect.Exception (throw)
 import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, currentDir, debugPrintPath, dir, extension, file, in', joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, peel, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, sandboxAny, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
 import Pathy.Name (reflectName)
@@ -21,14 +22,14 @@ import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
 import Unsafe.Coerce (unsafeCoerce)
 
-test :: forall a eff. Show a => Eq a => String -> a -> a -> Eff (console :: CONSOLE, exception :: EXCEPTION | eff) Unit
+test :: forall a. Show a => Eq a => String -> a -> a -> Effect Unit
 test name actual expected= do
   info $ "Test: " <> name
   if expected == actual
     then info $ "Passed: " <> (show expected)
     else throw $ "Failed:\n    Expected: " <> (show expected) <> "\n    Actual:   " <> (show actual)
 
-test' :: forall a b eff. IsRelOrAbs a => IsDirOrFile b => String -> Path a b -> String -> Eff (console :: CONSOLE, exception :: EXCEPTION | eff) Unit
+test' :: forall a b. IsRelOrAbs a => IsDirOrFile b => String -> Path a b -> String -> Effect Unit
 test' n p s = test n (printTestPath p) s
 
 pathPart ∷ Gen.Gen NonEmptyString
@@ -89,12 +90,12 @@ genAmbigiousName =
 checkAlterExtensionId :: Gen.Gen QC.Result
 checkAlterExtensionId = do
   n <- genAmbigiousName
-  pure $ alterExtension id n === id n
+  pure $ alterExtension identity n === identity n
 
 checkJoinSplitNameId :: Gen.Gen QC.Result
 checkJoinSplitNameId = do
   n <- genAmbigiousName
-  pure $ joinName (splitName n) === id n
+  pure $ joinName (splitName n) === identity n
 
 checkPeelIn :: forall b. IsDirOrFile b => Gen.Gen (Path Abs b) -> Gen.Gen QC.Result
 checkPeelIn gen = do
@@ -118,7 +119,7 @@ checkRelative gen = do
           <> "\n\trel:  " <> printTestPath rel
           <> "\n\tp1': " <> printTestPath p1'
 
-main :: QC.QC () Unit
+main :: Effect Unit
 main = do
   info "checking `parse <<< print` for `AbsDir`" *> QC.quickCheck parsePrintAbsDirPath
   info "checking `parse <<< print` for `AbsFile`" *> QC.quickCheck parsePrintAbsFilePath

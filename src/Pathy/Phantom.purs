@@ -24,8 +24,8 @@ class IsRelOrAbs (a :: RelOrAbs) where
     -> f a b
     -> r
 
-instance relIsRelOrAbs :: IsRelOrAbs Rel where onRelOrAbs f _ = f id
-instance absIsRelOrAbs :: IsRelOrAbs Abs where onRelOrAbs _ f = f id
+instance relIsRelOrAbs :: IsRelOrAbs Rel where onRelOrAbs f _ = f identity
+instance absIsRelOrAbs :: IsRelOrAbs Abs where onRelOrAbs _ f = f identity
 
 -- | Folds over a value that uses `RelOrAbs` to produce a new result.
 foldRelOrAbs
@@ -59,8 +59,8 @@ class IsDirOrFile (b :: DirOrFile) where
     -> f b
     -> r
 
-instance isDirOrFileDir :: IsDirOrFile Dir where onDirOrFile f _ = f id
-instance isDirOrFileFile :: IsDirOrFile File where onDirOrFile _ f = f id
+instance isDirOrFileDir :: IsDirOrFile Dir where onDirOrFile f _ = f identity
+instance isDirOrFileFile :: IsDirOrFile File where onDirOrFile _ f = f identity
 
 -- | Folds over a value that uses `DirOrFile` to produce a new result.
 foldDirOrFile
