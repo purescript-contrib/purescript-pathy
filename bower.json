@@ -25,9 +25,9 @@
     "purescript-strings": "^4.0.0",
     "purescript-transformers": "^4.1.0",
     "purescript-unsafe-coerce": "^4.0.0",
-    "purescript-typelevel-prelude": "^3.0.0"
+    "purescript-typelevel-prelude": "^4.0.0"
   },
   "devDependencies": {
-    "purescript-quickcheck": "^5.0.0"
+    "purescript-quickcheck": "^6.0.0"
   }
 }
