@@ -296,22 +296,22 @@ main = do
 
   test "rename - single level deep"
     (rename (alterExtension (const Nothing)) (file (SProxy :: SProxy "image.png")))
-    (file $ SProxy :: SProxy "image")
+    (file (SProxy :: SProxy "image"))
 
   test """extension (Name ".foo")    == Nothing"""
-    (extension (reflectName $ SProxy :: SProxy ".foo"))
+    (extension (reflectName (SProxy :: SProxy ".foo")))
     (Nothing)
   test """extension (Name "foo.")    == Nothing"""
-    (extension (reflectName $ SProxy :: SProxy "foo."))
+    (extension (reflectName (SProxy :: SProxy "foo.")))
     (Nothing)
   test """extension (Name "foo")    == Nothing"""
-    (extension (reflectName $ SProxy :: SProxy "foo"))
+    (extension (reflectName (SProxy :: SProxy "foo")))
     (Nothing)
   test """extension (Name ".")       == Nothing"""
-    (extension (reflectName $ SProxy :: SProxy "."))
+    (extension (reflectName (SProxy :: SProxy ".")))
     (Nothing)
   test """extension (Name "foo.baz") == (Just "baz")"""
-    (extension (reflectName $ SProxy :: SProxy "foo.baz"))
+    (extension (reflectName (SProxy :: SProxy "foo.baz")))
     (NES.fromString "baz")
 
   test "sandbox - fail when relative path lies outside sandbox (above)"
@@ -344,11 +344,11 @@ main = do
 
   test "parseRelFile - image.png"
     (parseRelFile posixParser "image.png")
-    (Just $ file $ SProxy :: SProxy "image.png")
+    (Just $ file (SProxy :: SProxy "image.png"))
 
   test "parseRelFile - ./image.png"
     (parseRelFile posixParser "./image.png")
-    (Just $ file $ SProxy :: SProxy "image.png")
+    (Just $ file (SProxy :: SProxy "image.png"))
 
   test "parseRelFile - foo/image.png"
     (parseRelFile posixParser "foo/image.png")
