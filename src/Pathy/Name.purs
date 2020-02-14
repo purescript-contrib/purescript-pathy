@@ -9,7 +9,7 @@ import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty.CodeUnits as NES
 import Data.Symbol (class IsSymbol, SProxy(..))
 import Data.Symbol (reflectSymbol) as Symbol
-import Pathy.Phantom (kind DirOrFile)
+import Pathy.Phantom (DirOrFile)
 import Type.Data.Boolean (False) as Symbol
 import Type.Data.Symbol (class Equals) as Symbol
 import Unsafe.Coerce (unsafeCoerce)

@@ -43,7 +43,7 @@ import Data.Symbol (SProxy)
 import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafeCrashWith)
 import Pathy.Name (class IsName, Name(..), alterExtension, reflectName)
-import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, onRelOrAbs, kind DirOrFile, kind RelOrAbs)
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, onRelOrAbs, DirOrFile, RelOrAbs)
 import Unsafe.Coerce (unsafeCoerce)
 
 -- | A type that describes a Path. All flavors of paths are described by this
