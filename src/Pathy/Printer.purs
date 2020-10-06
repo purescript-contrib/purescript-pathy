@@ -25,7 +25,7 @@ import Data.String.NonEmpty.CodeUnits (cons, singleton) as NES
 import Partial.Unsafe (unsafePartial)
 import Pathy.Name (Name)
 import Pathy.Path (Path, foldPath, (</>))
-import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Dir, Rel, foldDirOrFile, foldRelOrAbs, kind DirOrFile, kind RelOrAbs)
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Dir, Rel, foldDirOrFile, foldRelOrAbs)
 import Pathy.Sandboxed (SandboxedPath, sandboxRoot, unsandbox)
 import Prim.TypeError (class Warn, Text)
 
