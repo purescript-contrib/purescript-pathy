@@ -3,7 +3,7 @@ module Pathy.Phantom where
 import Prelude
 
 -- | The kind for the relative/absolute phantom type.
-foreign import kind RelOrAbs
+data RelOrAbs
 
 -- | The phantom type of relative paths.
 foreign import data Rel :: RelOrAbs
@@ -38,7 +38,7 @@ foldRelOrAbs
 foldRelOrAbs f g = onRelOrAbs (const f) (const g)
 
 -- | The kind for the directory/file phantom type.
-foreign import kind DirOrFile
+data DirOrFile
 
 -- | The phantom type of directories.
 foreign import data Dir :: DirOrFile
