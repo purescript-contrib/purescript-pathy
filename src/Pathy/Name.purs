@@ -16,7 +16,8 @@ import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 -- | A type used for both directory and file names, indexed by `DirOrFile`.
-newtype Name (n :: DirOrFile) = Name NonEmptyString
+newtype Name :: DirOrFile -> Type
+newtype Name n = Name NonEmptyString
 
 derive instance newtypeName :: Newtype (Name n) _
 derive newtype instance eqName :: Eq (Name a)

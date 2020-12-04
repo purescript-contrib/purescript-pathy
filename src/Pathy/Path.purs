@@ -58,7 +58,8 @@ import Unsafe.Coerce (unsafeCoerce)
 -- |
 -- | This ADT allows invalid paths (e.g. paths inside files), but there is no
 -- | possible way for such paths to be constructed by user-land code.
-data Path (a :: RelOrAbs) (b :: DirOrFile)
+data Path :: RelOrAbs -> DirOrFile -> Type
+data Path a b
   = Init
   | ParentOf (Path Rel Dir)
   | In (Path a Dir) (Name b)
