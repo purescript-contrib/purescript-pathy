@@ -39,7 +39,6 @@ import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (un)
 import Data.String.NonEmpty as NES
-import Data.Symbol (SProxy)
 import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafeCrashWith)
 import Pathy.Name (class IsName, Name(..), alterExtension, reflectName)
@@ -114,7 +113,7 @@ currentDir = Init
 -- |
 -- | Instead of accepting a runtime value, this function accepts a type-level
 -- | string via a proxy, to ensure the constructed name is not empty.
-file :: forall s. IsName s => SProxy s -> Path Rel File
+file :: forall s proxy. IsName s => proxy s -> Path Rel File
 file = file' <<< reflectName
 
 -- | Creates a path which points to a relative file of the specified name.
@@ -125,7 +124,7 @@ file' = in'
 -- |
 -- | Instead of accepting a runtime value, this function accepts a type-level
 -- | string via a proxy, to ensure the constructed name is not empty.
-dir :: forall s. IsName s => SProxy s -> Path Rel Dir
+dir :: forall s proxy. IsName s => proxy s -> Path Rel Dir
 dir = dir' <<< reflectName
 
 -- | Creates a path which points to a relative directory of the specified name.
