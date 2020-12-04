@@ -7,15 +7,17 @@ import Data.Newtype (class Newtype)
 import Data.String as S
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty.CodeUnits as NES
-import Data.Symbol (class IsSymbol, SProxy(..))
+import Data.Symbol (class IsSymbol)
 import Data.Symbol (reflectSymbol) as Symbol
-import Pathy.Phantom (kind DirOrFile)
+import Pathy.Phantom (DirOrFile)
 import Type.Data.Boolean (False) as Symbol
 import Type.Data.Symbol (class Equals) as Symbol
+import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 -- | A type used for both directory and file names, indexed by `DirOrFile`.
-newtype Name (n :: DirOrFile) = Name NonEmptyString
+newtype Name :: DirOrFile -> Type
+newtype Name n = Name NonEmptyString
 
 derive instance newtypeName :: Newtype (Name n) _
 derive newtype instance eqName :: Eq (Name a)
@@ -92,11 +94,12 @@ alterExtension f n =
 
 -- | A class for creating `Name` values from type-level strings. This allows us
 -- | to guarantee that a name is not empty at compile-time.
+class IsName :: Symbol -> Constraint
 class IsName sym where
-  reflectName :: forall d. SProxy sym -> Name d
+  reflectName :: forall proxy d. proxy sym -> Name d
 
 instance isNameNESymbol :: (IsSymbol s, Symbol.Equals s "" Symbol.False) => IsName s where
-  reflectName _ = asNonEmpty $ Symbol.reflectSymbol (SProxy :: SProxy s)
+  reflectName _ = asNonEmpty $ Symbol.reflectSymbol (Proxy :: Proxy s)
     where
     asNonEmpty :: forall d. String -> Name d
     asNonEmpty = unsafeCoerce

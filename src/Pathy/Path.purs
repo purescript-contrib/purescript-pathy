@@ -39,11 +39,10 @@ import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (un)
 import Data.String.NonEmpty as NES
-import Data.Symbol (SProxy)
 import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafeCrashWith)
 import Pathy.Name (class IsName, Name(..), alterExtension, reflectName)
-import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, onRelOrAbs, kind DirOrFile, kind RelOrAbs)
+import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, onRelOrAbs, DirOrFile, RelOrAbs)
 import Unsafe.Coerce (unsafeCoerce)
 
 -- | A type that describes a Path. All flavors of paths are described by this
@@ -59,7 +58,8 @@ import Unsafe.Coerce (unsafeCoerce)
 -- |
 -- | This ADT allows invalid paths (e.g. paths inside files), but there is no
 -- | possible way for such paths to be constructed by user-land code.
-data Path (a :: RelOrAbs) (b :: DirOrFile)
+data Path :: RelOrAbs -> DirOrFile -> Type
+data Path a b
   = Init
   | ParentOf (Path Rel Dir)
   | In (Path a Dir) (Name b)
@@ -114,7 +114,7 @@ currentDir = Init
 -- |
 -- | Instead of accepting a runtime value, this function accepts a type-level
 -- | string via a proxy, to ensure the constructed name is not empty.
-file :: forall s. IsName s => SProxy s -> Path Rel File
+file :: forall s proxy. IsName s => proxy s -> Path Rel File
 file = file' <<< reflectName
 
 -- | Creates a path which points to a relative file of the specified name.
@@ -125,7 +125,7 @@ file' = in'
 -- |
 -- | Instead of accepting a runtime value, this function accepts a type-level
 -- | string via a proxy, to ensure the constructed name is not empty.
-dir :: forall s. IsName s => SProxy s -> Path Rel Dir
+dir :: forall s proxy. IsName s => proxy s -> Path Rel Dir
 dir = dir' <<< reflectName
 
 -- | Creates a path which points to a relative directory of the specified name.

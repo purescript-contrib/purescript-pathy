@@ -9,7 +9,6 @@ import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty (fromString) as NES
 import Data.String.NonEmpty.CodeUnits (singleton) as NES
-import Data.Symbol (SProxy(..))
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (info)
@@ -17,6 +16,7 @@ import Effect.Exception (throw)
 import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, currentDir, debugPrintPath, dir, extension, file, in', joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, peel, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, sandboxAny, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
 import Pathy.Name (reflectName)
+import Type.Proxy (Proxy(..))
 import Test.QuickCheck ((===))
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
@@ -39,13 +39,13 @@ pathPart = asNonEmptyString <$> Gen.suchThat QC.arbitrary (not <<< Str.null)
   asNonEmptyString = unsafeCoerce
 
 dirFoo :: Path Rel Dir
-dirFoo = dir (SProxy :: SProxy "foo")
+dirFoo = dir (Proxy :: Proxy "foo")
 
 dirBar :: Path Rel Dir
-dirBar = dir (SProxy :: SProxy "bar")
+dirBar = dir (Proxy :: Proxy "bar")
 
 dirBaz :: Path Rel Dir
-dirBaz = dir (SProxy :: SProxy "baz")
+dirBaz = dir (Proxy :: Proxy "baz")
 
 parsePrintCheck :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> Maybe (Path a b) -> QC.Result
 parsePrintCheck input parsed =
@@ -155,22 +155,22 @@ main = do
     "./foo/bar/"
 
   test "windowsPrinter"
-    (printWindowsPath $ rootDir </> dir (SProxy :: SProxy "C") </> dirBar)
+    (printWindowsPath $ rootDir </> dir (Proxy :: Proxy "C") </> dirBar)
     "C:\\bar\\"
 
   test' "(</>) - file with two parents"
     (dirFoo
       </> dirBar
-      </> file (SProxy :: SProxy "image.png"))
+      </> file (Proxy :: Proxy "image.png"))
     "./foo/bar/image.png"
 
   test' "(<.>) - file without extension"
-    (file (SProxy :: SProxy "image")
+    (file (Proxy :: Proxy "image")
       <.> "png")
     "./image.png"
 
   test' "(<.>) - file with extension"
-    (file (SProxy :: SProxy "image.jpg")
+    (file (Proxy :: Proxy "image.jpg")
       <.> "png")
     "./image.png"
 
@@ -179,11 +179,11 @@ main = do
     "./../"
 
   test """printPath windowsPrinter - C:\Users\Default\"""
-    (printPath windowsPrinter $ sandboxAny $ rootDir </> dir (SProxy :: SProxy "C") </> dir (SProxy :: SProxy "Users") </> dir (SProxy :: SProxy "Default"))
+    (printPath windowsPrinter $ sandboxAny $ rootDir </> dir (Proxy :: Proxy "C") </> dir (Proxy :: Proxy "Users") </> dir (Proxy :: Proxy "Default"))
     """C:\Users\Default\"""
 
   test """printPath posixPrinter - /C/Users/Default/"""
-    (printPath posixPrinter $ sandboxAny $ rootDir </> dir (SProxy :: SProxy "C") </> dir (SProxy :: SProxy "Users") </> dir (SProxy :: SProxy "Default"))
+    (printPath posixPrinter $ sandboxAny $ rootDir </> dir (Proxy :: Proxy "C") </> dir (Proxy :: Proxy "Users") </> dir (Proxy :: Proxy "Default"))
     """/C/Users/Default/"""
 
   test """printPath windowsPrinter - \"""
@@ -295,23 +295,23 @@ main = do
     "./foo/"
 
   test "rename - single level deep"
-    (rename (alterExtension (const Nothing)) (file (SProxy :: SProxy "image.png")))
-    (file (SProxy :: SProxy "image"))
+    (rename (alterExtension (const Nothing)) (file (Proxy :: Proxy "image.png")))
+    (file (Proxy :: Proxy "image"))
 
   test """extension (Name ".foo")    == Nothing"""
-    (extension (reflectName (SProxy :: SProxy ".foo")))
+    (extension (reflectName (Proxy :: Proxy ".foo")))
     (Nothing)
   test """extension (Name "foo.")    == Nothing"""
-    (extension (reflectName (SProxy :: SProxy "foo.")))
+    (extension (reflectName (Proxy :: Proxy "foo.")))
     (Nothing)
   test """extension (Name "foo")    == Nothing"""
-    (extension (reflectName (SProxy :: SProxy "foo")))
+    (extension (reflectName (Proxy :: Proxy "foo")))
     (Nothing)
   test """extension (Name ".")       == Nothing"""
-    (extension (reflectName (SProxy :: SProxy ".")))
+    (extension (reflectName (Proxy :: Proxy ".")))
     (Nothing)
   test """extension (Name "foo.baz") == (Just "baz")"""
-    (extension (reflectName (SProxy :: SProxy "foo.baz")))
+    (extension (reflectName (Proxy :: Proxy "foo.baz")))
     (NES.fromString "baz")
 
   test "sandbox - fail when relative path lies outside sandbox (above)"
@@ -344,27 +344,27 @@ main = do
 
   test "parseRelFile - image.png"
     (parseRelFile posixParser "image.png")
-    (Just $ file (SProxy :: SProxy "image.png"))
+    (Just $ file (Proxy :: Proxy "image.png"))
 
   test "parseRelFile - ./image.png"
     (parseRelFile posixParser "./image.png")
-    (Just $ file (SProxy :: SProxy "image.png"))
+    (Just $ file (Proxy :: Proxy "image.png"))
 
   test "parseRelFile - foo/image.png"
     (parseRelFile posixParser "foo/image.png")
-    (Just $ dirFoo </> file (SProxy :: SProxy "image.png"))
+    (Just $ dirFoo </> file (Proxy :: Proxy "image.png"))
 
   test "parseRelFile - ../foo/image.png"
     (parseRelFile posixParser "../foo/image.png")
-    (Just $ currentDir <..> dirFoo </> file (SProxy :: SProxy "image.png"))
+    (Just $ currentDir <..> dirFoo </> file (Proxy :: Proxy "image.png"))
 
   test "parseAbsFile - /image.png"
     (parseAbsFile posixParser "/image.png")
-    (Just $ rootDir </> file (SProxy :: SProxy "image.png"))
+    (Just $ rootDir </> file (Proxy :: Proxy "image.png"))
 
   test "parseAbsFile - /foo/image.png"
     (parseAbsFile posixParser "/foo/image.png")
-    (Just $ rootDir </> dirFoo </> file (SProxy :: SProxy "image.png"))
+    (Just $ rootDir </> dirFoo </> file (Proxy :: Proxy "image.png"))
 
   test "parseRelDir - empty string"
     (parseRelDir posixParser "")

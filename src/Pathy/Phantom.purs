@@ -3,7 +3,7 @@ module Pathy.Phantom where
 import Prelude
 
 -- | The kind for the relative/absolute phantom type.
-foreign import kind RelOrAbs
+data RelOrAbs
 
 -- | The phantom type of relative paths.
 foreign import data Rel :: RelOrAbs
@@ -16,9 +16,10 @@ foreign import data Abs :: RelOrAbs
 -- | The provided `onRelOrAbs` function folds over a value indexed by
 -- | `RelOrAbs` to produce a new result, passing proof/coercion functions to
 -- | allow the inner functions to unify their return types if remapping.
-class IsRelOrAbs (a :: RelOrAbs) where
+class IsRelOrAbs :: RelOrAbs -> Constraint
+class IsRelOrAbs a where
   onRelOrAbs
-    :: forall f b r
+    :: forall (f :: RelOrAbs -> DirOrFile -> Type) b r
     . ((f Rel b -> f a b) -> f Rel b -> r)
     -> ((f Abs b -> f a b) -> f Abs b -> r)
     -> f a b
@@ -38,7 +39,7 @@ foldRelOrAbs
 foldRelOrAbs f g = onRelOrAbs (const f) (const g)
 
 -- | The kind for the directory/file phantom type.
-foreign import kind DirOrFile
+data DirOrFile
 
 -- | The phantom type of directories.
 foreign import data Dir :: DirOrFile
@@ -51,7 +52,8 @@ foreign import data File :: DirOrFile
 -- | The provided `onDirOrFile` function folds over a value indexed by
 -- | `DirOrFile` to produce a new result, passing proof/coercion functions to
 -- | allow the inner functions to unify their return types if remapping.
-class IsDirOrFile (b :: DirOrFile) where
+class IsDirOrFile :: DirOrFile -> Constraint
+class IsDirOrFile b where
   onDirOrFile
     :: forall f r
      . ((f Dir -> f b) -> f Dir -> r)
