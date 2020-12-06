@@ -64,6 +64,8 @@ data Path a b
   | ParentOf (Path Rel Dir)
   | In (Path a Dir) (Name b)
 
+type role Path nominal nominal
+
 derive instance eqPath :: Eq (Path a b)
 derive instance ordPath :: Ord (Path a b)
 
