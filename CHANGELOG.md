@@ -5,16 +5,20 @@ Notable changes to this project are documented in this file. The format is based
 ## [Unreleased]
 
 Breaking changes (😱!!!):
+- Added support for PureScript 0.14 and dropped support for all previous versions (#42)
 
 New features:
+- Added roles declarations to forbid unsafe coercions (#43)
 
 Bugfixes:
 
 Other improvements:
+- Changed default branch to `main` from `master`
+- Updated to comply with Contributors library guidelines by adding new issue and pull request templates, updating documentation, and migrating to Spago for local development and CI (#41)
 
 ## [v7.0.1](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v7.0.1) - 2019-06-04
 
-- Updated for PureScript 0.13 compatibility
+- Updated for PureScript 0.13
 
 ## [v7.0.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v7.0.0) - 2019-03-04
 
@@ -22,19 +26,19 @@ Other improvements:
 
 ## [v6.0.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v6.0.0) - 2018-06-28
 
-- Updates for PS@0.12 @therealnicksaunders
+- Updates for PureScript 0.12
 
 ## [v5.0.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v5.0.0) - 2018-03-20
 
-- Remove `Sandboxed` slot from `Pathy` type.
-- Add better way of Sandboxing.
-- Use `NonEmptyString` for segment names.
-- Make runtime representation of Pathy simpler.
-- And bunch more, see #33 (@safareli, @garyb)
+- Removed `Sandboxed` slot from `Pathy` type.
+- Added better way of Sandboxing.
+- Used `NonEmptyString` for segment names.
+- Made runtime representation of Pathy simpler.
+- Many more: see #33 (@safareli, @garyb)
 
 ## [v4.1.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v4.1.0) - 2017-12-21
 
-- Add Gen module - @safareli #31
+- Added `Gen` module - (#31 by @safareli)
 
 ## [v4.0.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v4.0.0) - 2017-04-04
 
@@ -61,7 +65,7 @@ Other improvements:
 
 ## [v0.3.3](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v0.3.3) - 2016-04-21
 
-- Fix the exports for v0.3.2
+- Fixed the exports for v0.3.2
 
 ## [v0.3.2](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v0.3.2) - 2016-04-21
 
