@@ -4,7 +4,7 @@ import Prelude
 
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (un)
-import Data.NonEmpty ((:|))
+import Data.Array.NonEmpty (cons')
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty (fromString) as NES
@@ -77,7 +77,7 @@ genAmbigiousName =
   let
     genNES = PG.genName <#> un Name
   in
-    map Name $ Gen.oneOf $ genNES :|
+    map Name $ Gen.oneOf $ cons' genNES
       [ genNES <#> \a -> a <> (NES.singleton '.')
       , genNES <#> \a -> (NES.singleton '.') <> a
       , pure (NES.singleton '.')

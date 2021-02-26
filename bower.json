@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/slamdata/purescript-pathy.git"
+    "url": "https://github.com/purescript-contrib/purescript-pathy.git"
   },
   "ignore": [
     "**/.*",
@@ -17,17 +17,18 @@
     "package.json"
   ],
   "dependencies": {
-    "purescript-console": "^4.0.1",
-    "purescript-exceptions": "^4.0.0",
-    "purescript-lists": "^5.0.0",
-    "purescript-partial": "^2.0.0",
-    "purescript-profunctor": "^4.0.0",
-    "purescript-strings": "^4.0.0",
-    "purescript-transformers": "^4.1.0",
-    "purescript-unsafe-coerce": "^4.0.0",
-    "purescript-typelevel-prelude": ">=4.0.0 <6.0.0"
+    "purescript-console": "^5.0.0",
+    "purescript-exceptions": "^5.0.0",
+    "purescript-lists": "^6.0.0",
+    "purescript-partial": "^3.0.0",
+    "purescript-profunctor": "^5.0.0",
+    "purescript-strings": "^5.0.0",
+    "purescript-transformers": "^5.0.0",
+    "purescript-typelevel-prelude": "^6.0.0",
+    "purescript-unsafe-coerce": "^5.0.0"
   },
   "devDependencies": {
-    "purescript-quickcheck": "^6.0.0"
+    "purescript-effect": "^3.0.0",
+    "purescript-quickcheck": "^7.0.0"
   }
 }
