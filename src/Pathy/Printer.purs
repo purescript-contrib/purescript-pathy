@@ -10,6 +10,7 @@ module Pathy.Printer
   , dotEscaper
   , posixEscaper
   , windowsEscaper
+  , escape
   ) where
 
 import Prelude
