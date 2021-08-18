@@ -160,12 +160,12 @@ instance semigroupEscaper :: Semigroup Escaper where
 instance monoidEscaper :: Monoid Escaper where
   mempty = Escaper identity
 
--- | An escaper that replaces all `'/'` characters in a name with `'-'`s.
+-- | An escaper that replaces all `'/'` characters in a name with `$slash`.
 slashEscaper :: Escaper
-slashEscaper = Escaper (NES.replaceAll slash dash)
+slashEscaper = Escaper (NES.replaceAll slash escaped)
   where
     slash = Str.Pattern "/"
-    dash = NES.NonEmptyReplacement (NES.singleton '-')
+    escaped = NES.NonEmptyReplacement $ unsafePartial NES.unsafeFromString "$slash" 
 
 -- | An escaper that replaces names `"."` and `".."` with `"$dot"` and
 -- | `"$dot$dot"`.
@@ -175,8 +175,8 @@ dotEscaper = Escaper \s -> case NES.toString s of
   "." -> unsafePartial NES.unsafeFromString "$dot"
   _ -> s
 
--- | An escaper that removes all slashes, converts ".." into "$dot$dot", and
--- | converts "." into "$dot".
+-- | An escaper that converts slashes into "$slash", ".." into "$dot$dot", and
+-- | "." into "$dot".
 posixEscaper :: Escaper
 posixEscaper = slashEscaper <> dotEscaper
 
