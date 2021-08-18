@@ -11,6 +11,7 @@ New features:
 Bugfixes:
 
 Other improvements:
+- Changed `slashEscaper`: replace slashes in a name with `$slash` instead of `-` (#48 by @rintcius)
 
 ## [v8.1.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v8.1.0) - 2021-05-06
 

@@ -194,6 +194,30 @@ main = do
     (printPath posixPrinter $ sandboxAny rootDir)
     """/"""
 
+  test """printPath posixPrinter - escape . - /C/$dot/"""
+    (printPath posixPrinter $ sandboxAny $ rootDir </> dir (Proxy :: Proxy "C") </> dir (Proxy :: Proxy "."))
+    """/C/$dot/"""
+
+  test """printPath posixPrinter - escape .. - /C/$dot$dot/"""
+    (printPath posixPrinter $ sandboxAny $ rootDir </> dir (Proxy :: Proxy "C") </> dir (Proxy :: Proxy ".."))
+    """/C/$dot$dot/"""
+
+  test """printPath posixPrinter - don't escape ... - /C/.../"""
+    (printPath posixPrinter $ sandboxAny $ rootDir </> dir (Proxy :: Proxy "C") </> dir (Proxy :: Proxy "..."))
+    """/C/.../"""
+
+  test """printPath posixPrinter - don't escape foo.bar - /C/foo.bar/"""
+    (printPath posixPrinter $ sandboxAny $ rootDir </> dir (Proxy :: Proxy "C") </> dir (Proxy :: Proxy "foo.bar"))
+    """/C/foo.bar/"""
+
+  test """printPath posixPrinter - escape / - /C/$slash/"""
+    (printPath posixPrinter $ sandboxAny $ rootDir </> dir (Proxy :: Proxy "C") </> dir (Proxy :: Proxy "/"))
+    """/C/$slash/"""
+
+  test """printPath posixPrinter - escape foo/bar - /C/foo$slashbar/"""
+    (printPath posixPrinter $ sandboxAny $ rootDir </> dir (Proxy :: Proxy "C") </> dir (Proxy :: Proxy "foo/bar"))
+    """/C/foo$slashbar/"""
+
   test' "(</>) - ./../foo/"
     (parentOf currentDir </> dirFoo)
     "./../foo/"
