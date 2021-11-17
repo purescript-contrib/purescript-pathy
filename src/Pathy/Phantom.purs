@@ -20,18 +20,21 @@ class IsRelOrAbs :: RelOrAbs -> Constraint
 class IsRelOrAbs a where
   onRelOrAbs
     :: forall (f :: RelOrAbs -> DirOrFile -> Type) b r
-    . ((f Rel b -> f a b) -> f Rel b -> r)
+     . ((f Rel b -> f a b) -> f Rel b -> r)
     -> ((f Abs b -> f a b) -> f Abs b -> r)
     -> f a b
     -> r
 
-instance relIsRelOrAbs :: IsRelOrAbs Rel where onRelOrAbs f _ = f identity
-instance absIsRelOrAbs :: IsRelOrAbs Abs where onRelOrAbs _ f = f identity
+instance relIsRelOrAbs :: IsRelOrAbs Rel where
+  onRelOrAbs f _ = f identity
+
+instance absIsRelOrAbs :: IsRelOrAbs Abs where
+  onRelOrAbs _ f = f identity
 
 -- | Folds over a value that uses `RelOrAbs` to produce a new result.
 foldRelOrAbs
   :: forall f a b r
-  . IsRelOrAbs a
+   . IsRelOrAbs a
   => (f Rel b -> r)
   -> (f Abs b -> r)
   -> f a b
@@ -61,13 +64,16 @@ class IsDirOrFile b where
     -> f b
     -> r
 
-instance isDirOrFileDir :: IsDirOrFile Dir where onDirOrFile f _ = f identity
-instance isDirOrFileFile :: IsDirOrFile File where onDirOrFile _ f = f identity
+instance isDirOrFileDir :: IsDirOrFile Dir where
+  onDirOrFile f _ = f identity
+
+instance isDirOrFileFile :: IsDirOrFile File where
+  onDirOrFile _ f = f identity
 
 -- | Folds over a value that uses `DirOrFile` to produce a new result.
 foldDirOrFile
   :: forall f b r
-  . IsDirOrFile b
+   . IsDirOrFile b
   => (f Dir -> r)
   -> (f File -> r)
   -> f b

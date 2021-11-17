@@ -18,8 +18,10 @@ module Pathy.Path
   , in'
   , parentOf
   , extendPath
-  , appendPath, (</>)
-  , parentAppend, (<..>)
+  , appendPath
+  , (</>)
+  , parentAppend
+  , (<..>)
   , foldPath
   , peel
   , peelFile
@@ -27,7 +29,8 @@ module Pathy.Path
   , fileName
   , rename
   , renameTraverse
-  , setExtension, (<.>)
+  , setExtension
+  , (<.>)
   , relativeTo
   , refine
   ) where
@@ -272,24 +275,26 @@ infixl 6 setExtension as <.>
 relativeTo :: forall b. Path Abs b -> Path Abs Dir -> Path Rel b
 relativeTo p = coeB <<< step Init (coeD p)
   where
-    step :: Path Rel Dir -> Path Abs Dir -> Path Abs Dir -> Path Rel Dir
-    step acc = case _, _ of
-      p', rp' | p' == rp' -> acc
-      Init, In rp' _ -> step (ParentOf acc) Init rp'
-      In p' n, Init -> In (step acc p' Init) n
-      In p' n, rp'
-        | p' == rp' -> In acc n
-        | otherwise -> In (step acc p' rp') n
-      _, _ ->
-        unsafeCrashWith "`ParentOf` in Pathy.relativeTo (this should be impossible)"
-    -- Unfortunately we can't avoid some coercions in this function unless
-    -- we actually write two different verions of `relativeTo` for file/dir
-    -- paths. Since the actual data representation is same either way the
-    -- coercions are safe.
-    coeD :: forall a. Path a b -> Path a Dir
-    coeD = unsafeCoerce
-    coeB :: forall a. Path a Dir -> Path a b
-    coeB = unsafeCoerce
+  step :: Path Rel Dir -> Path Abs Dir -> Path Abs Dir -> Path Rel Dir
+  step acc = case _, _ of
+    p', rp' | p' == rp' -> acc
+    Init, In rp' _ -> step (ParentOf acc) Init rp'
+    In p' n, Init -> In (step acc p' Init) n
+    In p' n, rp'
+      | p' == rp' -> In acc n
+      | otherwise -> In (step acc p' rp') n
+    _, _ ->
+      unsafeCrashWith "`ParentOf` in Pathy.relativeTo (this should be impossible)"
+
+  -- Unfortunately we can't avoid some coercions in this function unless
+  -- we actually write two different verions of `relativeTo` for file/dir
+  -- paths. Since the actual data representation is same either way the
+  -- coercions are safe.
+  coeD :: forall a. Path a b -> Path a Dir
+  coeD = unsafeCoerce
+
+  coeB :: forall a. Path a Dir -> Path a b
+  coeB = unsafeCoerce
 
 -- | Refines path segments but does not change anything else.
 refine
@@ -301,7 +306,7 @@ refine
   -> Path a b
 refine f d = go
   where
-    go :: forall a' b'. IsDirOrFile b' => Path a' b' -> Path a' b'
-    go Init = Init
-    go (ParentOf p) = ParentOf (go p)
-    go (In p n) = In (go p) (onDirOrFile (_ <<< d) (_ <<< f) n)
+  go :: forall a' b'. IsDirOrFile b' => Path a' b' -> Path a' b'
+  go Init = Init
+  go (ParentOf p) = ParentOf (go p)
+  go (In p n) = In (go p) (onDirOrFile (_ <<< d) (_ <<< f) n)

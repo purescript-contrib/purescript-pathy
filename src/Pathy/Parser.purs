@@ -27,13 +27,14 @@ import Pathy.Phantom (class IsRelOrAbs, Dir)
 
 newtype Parser = Parser
   ( forall z
-   . (RelDir -> z)
-  -> (AbsDir -> z)
-  -> (RelFile -> z)
-  -> (AbsFile -> z)
-  -> z
-  -> String
-  -> z)
+     . (RelDir -> z)
+    -> (AbsDir -> z)
+    -> (RelFile -> z)
+    -> (AbsFile -> z)
+    -> z
+    -> String
+    -> z
+  )
 
 -- | A parser for POSIX paths.
 posixParser :: Parser
@@ -75,13 +76,13 @@ buildPath z init k segs =
       | NES.toString name == "." -> k $ Left (go segs')
       | otherwise -> k $ Right (extendPath (go segs') (Name name))
   where
-    go :: List NonEmptyString -> Path a Dir
-    go = case _ of
-      Nil -> init
-      name : segs'
-        | NES.toString name == ".." -> parentOf (go segs')
-        | NES.toString name == "." -> go segs'
-        | otherwise -> extendPath (go segs') (Name name)
+  go :: List NonEmptyString -> Path a Dir
+  go = case _ of
+    Nil -> init
+    name : segs'
+      | NES.toString name == ".." -> parentOf (go segs')
+      | NES.toString name == "." -> go segs'
+      | otherwise -> extendPath (go segs') (Name name)
 
 parsePath
   :: forall z
