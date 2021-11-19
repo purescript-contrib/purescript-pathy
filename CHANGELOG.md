@@ -11,6 +11,7 @@ New features:
 Bugfixes:
 
 Other improvements:
+- Added `purs-tidy` formatter (#49 by @thomashoneyman)
 
 ## [v8.1.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v8.1.0) - 2021-05-06
 

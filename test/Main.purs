@@ -23,16 +23,15 @@ import Test.QuickCheck.Gen as Gen
 import Unsafe.Coerce (unsafeCoerce)
 
 test :: forall a. Show a => Eq a => String -> a -> a -> Effect Unit
-test name actual expected= do
+test name actual expected = do
   info $ "Test: " <> name
-  if expected == actual
-    then info $ "Passed: " <> (show expected)
-    else throw $ "Failed:\n    Expected: " <> (show expected) <> "\n    Actual:   " <> (show actual)
+  if expected == actual then info $ "Passed: " <> (show expected)
+  else throw $ "Failed:\n    Expected: " <> (show expected) <> "\n    Actual:   " <> (show actual)
 
 test' :: forall a b. IsRelOrAbs a => IsDirOrFile b => String -> Path a b -> String -> Effect Unit
 test' n p s = test n (printTestPath p) s
 
-pathPart ∷ Gen.Gen NonEmptyString
+pathPart :: Gen.Gen NonEmptyString
 pathPart = asNonEmptyString <$> Gen.suchThat QC.arbitrary (not <<< Str.null)
   where
   asNonEmptyString :: String -> NonEmptyString
@@ -49,12 +48,14 @@ dirBaz = dir (Proxy :: Proxy "baz")
 
 parsePrintCheck :: forall a b. IsRelOrAbs a => IsDirOrFile b => Path a b -> Maybe (Path a b) -> QC.Result
 parsePrintCheck input parsed =
-  if parsed == Just input
-    then QC.Success
-    else QC.Failed
-      $ "`parse (print path) != Just path` for path: `" <> show input <> "` which was re-parsed into `" <> show parsed <> "`"
-      <> "\n\tPrinted path: " <> show (printTestPath input)
-      <> "\n\tPrinted path': `" <> show (map (printTestPath) parsed) <> "`"
+  if parsed == Just input then QC.Success
+  else QC.Failed
+    $ "`parse (print path) != Just path` for path: `" <> show input <> "` which was re-parsed into `" <> show parsed <> "`"
+        <> "\n\tPrinted path: "
+        <> show (printTestPath input)
+        <> "\n\tPrinted path': `"
+        <> show (map (printTestPath) parsed)
+        <> "`"
 
 parsePrintAbsDirPath :: Gen.Gen QC.Result
 parsePrintAbsDirPath = PG.genAbsDirPath <#> \path ->
@@ -109,15 +110,18 @@ checkRelative gen = do
   let rel = p1 `relativeTo` p2
   let p1' = p2 </> rel
   pure
-    if p1 == p1'
-      then QC.Success
-      else
-        QC.Failed
-          $ "`relativeTo` property did not hold:"
-          <> "\n\tp1:  " <> printTestPath p1
-          <> "\n\tp2:  " <> printTestPath p2
-          <> "\n\trel:  " <> printTestPath rel
-          <> "\n\tp1': " <> printTestPath p1'
+    if p1 == p1' then QC.Success
+    else
+      QC.Failed
+        $ "`relativeTo` property did not hold:"
+            <> "\n\tp1:  "
+            <> printTestPath p1
+            <> "\n\tp2:  "
+            <> printTestPath p2
+            <> "\n\trel:  "
+            <> printTestPath rel
+            <> "\n\tp1': "
+            <> printTestPath p1'
 
 main :: Effect Unit
 main = do
@@ -159,19 +163,22 @@ main = do
     "C:\\bar\\"
 
   test' "(</>) - file with two parents"
-    (dirFoo
-      </> dirBar
-      </> file (Proxy :: Proxy "image.png"))
+    ( dirFoo
+        </> dirBar
+        </> file (Proxy :: Proxy "image.png")
+    )
     "./foo/bar/image.png"
 
   test' "(<.>) - file without extension"
-    (file (Proxy :: Proxy "image")
-      <.> "png")
+    ( file (Proxy :: Proxy "image")
+        <.> "png"
+    )
     "./image.png"
 
   test' "(<.>) - file with extension"
-    (file (Proxy :: Proxy "image.jpg")
-      <.> "png")
+    ( file (Proxy :: Proxy "image.jpg")
+        <.> "png"
+    )
     "./image.png"
 
   test' "printPath - ./../"

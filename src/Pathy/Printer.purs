@@ -120,29 +120,30 @@ printPathRep
   -> String
 printPathRep printer inputPath = go inputPath
   where
-    go :: forall a' b'. IsRelOrAbs a' => IsDirOrFile b' => Path a' b' -> String
-    go = foldPath caseCurrent caseParentOf caseIn
+  go :: forall a' b'. IsRelOrAbs a' => IsDirOrFile b' => Path a' b' -> String
+  go = foldPath caseCurrent caseParentOf caseIn
 
-    isAbs :: Boolean
-    isAbs = foldRelOrAbs (const false) (const true) inputPath
+  isAbs :: Boolean
+  isAbs = foldRelOrAbs (const false) (const true) inputPath
 
-    caseCurrent :: String
-    caseCurrent = if isAbs
-      then printer.root Nothing
-      else NES.toString $ printer.current <> printer.sep
+  caseCurrent :: String
+  caseCurrent =
+    if isAbs then printer.root Nothing
+    else NES.toString $ printer.current <> printer.sep
 
-    caseParentOf :: Path Rel Dir -> String
-    caseParentOf p = go p <> NES.toString (printer.up <> printer.sep)
+  caseParentOf :: Path Rel Dir -> String
+  caseParentOf p = go p <> NES.toString (printer.up <> printer.sep)
 
-    caseIn :: forall a' b'. IsRelOrAbs a' => IsDirOrFile b' => Path a' Dir -> Name b' -> String
-    caseIn p name = name # foldDirOrFile
-      (\dirName -> p # foldPath
-        (if isAbs
-          then printer.root (Just $ unwrap dirName) <> NES.toString printer.sep
-          else caseCurrent <> printSegment printer dirName <> NES.toString printer.sep)
+  caseIn :: forall a' b'. IsRelOrAbs a' => IsDirOrFile b' => Path a' Dir -> Name b' -> String
+  caseIn p name = name # foldDirOrFile
+    ( \dirName -> p # foldPath
+        ( if isAbs then printer.root (Just $ unwrap dirName) <> NES.toString printer.sep
+          else caseCurrent <> printSegment printer dirName <> NES.toString printer.sep
+        )
         (\p' -> caseParentOf p' <> printSegment printer dirName <> NES.toString printer.sep)
-        (\p' n' -> caseIn p' n' <> printSegment printer dirName <> NES.toString printer.sep))
-      (\fileName -> go p <> printSegment printer fileName)
+        (\p' n' -> caseIn p' n' <> printSegment printer dirName <> NES.toString printer.sep)
+    )
+    (\fileName -> go p <> printSegment printer fileName)
 
 -- | Prints a name as a `String` using the escaper from the specified printer.
 printSegment :: forall name. Newtype name NonEmptyString => Printer -> name -> String
@@ -164,8 +165,8 @@ instance monoidEscaper :: Monoid Escaper where
 slashEscaper :: Escaper
 slashEscaper = Escaper (NES.replaceAll slash dash)
   where
-    slash = Str.Pattern "/"
-    dash = NES.NonEmptyReplacement (NES.singleton '-')
+  slash = Str.Pattern "/"
+  dash = NES.NonEmptyReplacement (NES.singleton '-')
 
 -- | An escaper that replaces names `"."` and `".."` with `"$dot"` and
 -- | `"$dot$dot"`.
@@ -185,15 +186,15 @@ posixEscaper = slashEscaper <> dotEscaper
 windowsEscaper :: Escaper
 windowsEscaper = badCharEscaper <> badNameEscaper <> dotEscaper
   where
-    badCharEscaper =
-      fold $ map
-        (\c -> Escaper (NES.replaceAll (Str.Pattern (Str.singleton c)) dash))
-        ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
-    badNameEscaper =
-      fold $ map
-        (\n -> Escaper (NES.replaceAll (Str.Pattern n) (NES.NonEmptyReplacement (NES.cons '$' n))))
-        ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"]
-    dash = NES.NonEmptyReplacement (NES.singleton '-')
+  badCharEscaper =
+    fold $ map
+      (\c -> Escaper (NES.replaceAll (Str.Pattern (Str.singleton c)) dash))
+      [ '\\', '/', ':', '*', '?', '"', '<', '>', '|' ]
+  badNameEscaper =
+    fold $ map
+      (\n -> Escaper (NES.replaceAll (Str.Pattern n) (NES.NonEmptyReplacement (NES.cons '$' n))))
+      [ "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" ]
+  dash = NES.NonEmptyReplacement (NES.singleton '-')
 
 -- | Prints a name as a `String` using the specified escaper.
 escape :: forall name. Newtype name NonEmptyString => Escaper -> name -> String

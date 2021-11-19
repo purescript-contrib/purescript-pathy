@@ -31,13 +31,13 @@ sandbox
   -> Maybe (SandboxedPath a b)
 sandbox root = map (SandboxedPath root) <<< onRelOrAbs (go (root </> _)) (go identity)
   where
-    go :: forall p. (p -> Path Abs b) -> (p -> Path a b) -> p -> Maybe (Path a b)
-    go f coe p =
-      if goesUp (f p `relativeTo` root)
-        then Nothing
-        else Just (coe p)
-    goesUp :: forall x y. Path x y -> Boolean
-    goesUp = foldPath false (const true) (\p _ -> goesUp p)
+  go :: forall p. (p -> Path Abs b) -> (p -> Path a b) -> p -> Maybe (Path a b)
+  go f coe p =
+    if goesUp (f p `relativeTo` root) then Nothing
+    else Just (coe p)
+
+  goesUp :: forall x y. Path x y -> Boolean
+  goesUp = foldPath false (const true) (\p _ -> goesUp p)
 
 -- | Sandboxes any path to `/`.
 -- |

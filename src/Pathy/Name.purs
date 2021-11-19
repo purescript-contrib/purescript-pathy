@@ -88,9 +88,9 @@ alterExtension
    . (Maybe NonEmptyString -> Maybe NonEmptyString)
   -> Name n
   -> Name n
-alterExtension f n =
+alterExtension f n = do
   let spn = splitName n
-  in joinName spn{ext = f spn.ext}
+  joinName spn { ext = f spn.ext }
 
 -- | A class for creating `Name` values from type-level strings. This allows us
 -- | to guarantee that a name is not empty at compile-time.
