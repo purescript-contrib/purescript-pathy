@@ -4,7 +4,6 @@
 [![Release](https://img.shields.io/github/release/purescript-contrib/purescript-pathy.svg)](https://github.com/purescript-contrib/purescript-pathy/releases)
 [![Pursuit](https://pursuit.purescript.org/packages/purescript-pathy/badge)](https://pursuit.purescript.org/packages/purescript-pathy)
 [![Maintainer: garyb](https://img.shields.io/badge/maintainer-garyb-teal.svg)](https://github.com/garyb)
-[![Maintainer: thomashoneyman](https://img.shields.io/badge/maintainer-thomashoneyman-teal.svg)](https://github.com/thomashoneyman)
 
 A type-safe abstraction for platform-independent file system paths.
 
