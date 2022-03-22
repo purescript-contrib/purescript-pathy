@@ -14,7 +14,6 @@
   , "nonempty"
   , "partial"
   , "prelude"
-  , "psci-support"
   , "quickcheck"
   , "strings"
   , "tailrec"
