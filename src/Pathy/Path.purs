@@ -1,14 +1,18 @@
 module Pathy.Path
   ( Path
-  , AnyPath
-  , RelPath
-  , AbsPath
+  , proxyRelDir
+  , proxyAbsDir
+  , proxyRelFile
+  , proxyAbsFile
   , RelDir
   , AbsDir
-  , AnyDir
   , RelFile
   , AbsFile
-  , AnyFile
+  , AnyDirPathVariant
+  , AnyFilePathVariant
+  , RelAnyPathVariant
+  , AbsAnyPathVariant
+  , AnyAnyPathVariant
   , rootDir
   , currentDir
   , dir
@@ -37,15 +41,16 @@ module Pathy.Path
 
 import Prelude
 
-import Data.Either (Either)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (un)
 import Data.String.NonEmpty as NES
 import Data.Tuple (Tuple(..), fst, snd)
+import Data.Variant (Variant)
 import Partial.Unsafe (unsafeCrashWith)
 import Pathy.Name (class IsName, Name(..), alterExtension, reflectName)
 import Pathy.Phantom (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, File, Rel, foldDirOrFile, foldRelOrAbs, onDirOrFile, onRelOrAbs, DirOrFile, RelOrAbs)
+import Type.Prelude (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 -- | A type that describes a Path. All flavors of paths are described by this
@@ -77,24 +82,12 @@ instance showPathRelDir :: (IsRelOrAbs a, IsDirOrFile b) => Show (Path a b) wher
   show (ParentOf p) = "(parentOf " <> show p <> ")"
   show (In p n) = "(" <> show p <> " </> " <> foldDirOrFile (("dir " <> _) <<< show) (("file " <> _) <<< show) n <> ")"
 
--- | A type describing a file or directory path.
-type AnyPath a = Either (Path a Dir) (Path a File)
-
--- | A type describing a relative file or directory path.
-type RelPath = AnyPath Rel
-
--- | A type describing an absolute file or directory path.
-type AbsPath = AnyPath Abs
-
 -- | A type describing a directory whose location is given relative to some
 -- | other, unspecified directory (referred to as the "current directory").
 type RelDir = Path Rel Dir
 
 -- | A type describing a directory whose location is absolutely specified.
 type AbsDir = Path Abs Dir
-
--- | A type describing a absolute or relative directory path.
-type AnyDir = Either AbsDir RelDir
 
 -- | A type describing a file whose location is given relative to some other,
 -- | unspecified directory (referred to as the "current directory").
@@ -103,8 +96,24 @@ type RelFile = Path Rel File
 -- | A type describing a file whose location is absolutely specified.
 type AbsFile = Path Abs File
 
--- | A type describing a absolute or relative file path.
-type AnyFile = Either AbsFile RelFile
+-- Proxy functions for different path types
+proxyRelDir :: Proxy "relDir"
+proxyRelDir = Proxy
+
+proxyAbsDir :: Proxy "absDir"
+proxyAbsDir = Proxy
+
+proxyRelFile :: Proxy "relFile"
+proxyRelFile = Proxy
+
+proxyAbsFile :: Proxy "absFile"
+proxyAbsFile = Proxy
+
+type AnyDirPathVariant = Variant (relDir :: RelDir, absDir :: AbsDir)
+type AnyFilePathVariant = Variant (relFile :: RelFile, absFile :: AbsFile)
+type RelAnyPathVariant = Variant (relDir :: RelDir, relFile :: RelFile)
+type AbsAnyPathVariant = Variant (absDir :: AbsDir, absFile :: AbsFile)
+type AnyAnyPathVariant = Variant (relDir :: RelDir, absDir :: AbsDir, relFile :: RelFile, absFile :: AbsFile)
 
 -- | The root directory, which can be used to define absolutely-located resources.
 rootDir :: Path Abs Dir

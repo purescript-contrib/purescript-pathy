@@ -1,0 +1,37 @@
+package:
+  name: pathy
+  publish:
+    license: Apache-2.0
+    version: 1.0.0
+    location:
+      githubOwner: purescript-contrib
+      githubRepo: purescript-pathy
+  dependencies:
+    - arrays
+    - either
+    - foldable-traversable
+    - gen
+    - identity
+    - lists
+    - maybe
+    - newtype
+    - nonempty
+    - partial
+    - prelude
+    - strings
+    - tailrec
+    - tuples
+    - typelevel-prelude
+    - unsafe-coerce
+    - variant
+  test:
+    main: Test.Main
+    dependencies:
+      - console
+      - effect
+      - exceptions
+      - quickcheck
+workspace:
+  packageSet:
+    registry: 60.3.0
+  extraPackages: {}

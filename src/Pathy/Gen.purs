@@ -1,28 +1,32 @@
 module Pathy.Gen
   ( genAbsDirPath
   , genAbsFilePath
-  , genAbsAnyPath
   , genRelDirPath
   , genRelFilePath
-  , genRelAnyPath
+  , genAnyDirPathVariant
+  , genAnyFilePathVariant
+  , genAbsAnyPathVariant
+  , genRelAnyPathVariant
+  , genAnyAnyPathVariant
   , genName
   , genDirName
   , genFileName
   ) where
 
+import Pathy.Path (AbsAnyPathVariant, AbsDir, AbsFile, AnyAnyPathVariant, AnyDirPathVariant, AnyFilePathVariant, RelAnyPathVariant, RelDir, RelFile, proxyAbsDir, proxyAbsFile, proxyRelDir, proxyRelFile, (</>))
+import Pathy.Phantom (Dir, File)
 import Prelude
 
 import Control.Monad.Gen (class MonadGen)
 import Control.Monad.Gen as Gen
 import Control.Monad.Rec.Class (class MonadRec)
 import Data.Char.Gen as CG
-import Data.Either (Either(..))
 import Data.Foldable (foldr)
 import Data.List as L
 import Data.NonEmpty ((:|))
 import Data.String.Gen as SG
 import Data.String.NonEmpty.CodeUnits (cons)
-import Pathy (AbsDir, AbsFile, AbsPath, Dir, File, RelDir, RelFile, RelPath, (</>))
+import Data.Variant (inj)
 import Pathy as P
 
 genName :: forall m a. MonadGen m => MonadRec m => m (P.Name a)
@@ -49,9 +53,6 @@ genAbsFilePath = do
   file <- genName
   pure $ dir </> P.file' file
 
-genAbsAnyPath :: forall m. MonadGen m => MonadRec m => m AbsPath
-genAbsAnyPath = Gen.oneOf $ (Left <$> genAbsDirPath) :| [ Right <$> genAbsFilePath ]
-
 genRelDirPath :: forall m. MonadGen m => MonadRec m => m RelDir
 genRelDirPath = Gen.sized \size -> do
   newSize <- Gen.chooseInt 0 size
@@ -65,5 +66,22 @@ genRelFilePath = do
   file <- genName
   pure $ dir </> P.file' file
 
-genRelAnyPath :: forall m. MonadGen m => MonadRec m => m RelPath
-genRelAnyPath = Gen.oneOf $ (Left <$> genRelDirPath) :| [ Right <$> genRelFilePath ]
+genAnyDirPathVariant :: forall m. MonadGen m => MonadRec m => m AnyDirPathVariant
+genAnyDirPathVariant = Gen.oneOf $ (inj proxyRelDir <$> genRelDirPath) :| [ inj proxyAbsDir <$> genAbsDirPath ]
+
+genAnyFilePathVariant :: forall m. MonadGen m => MonadRec m => m AnyFilePathVariant
+genAnyFilePathVariant = Gen.oneOf $ (inj proxyRelFile <$> genRelFilePath) :| [ inj proxyAbsFile <$> genAbsFilePath ]
+
+genRelAnyPathVariant :: forall m. MonadGen m => MonadRec m => m RelAnyPathVariant
+genRelAnyPathVariant = Gen.oneOf $ (inj proxyRelDir <$> genRelDirPath) :| [ inj proxyRelFile <$> genRelFilePath ]
+
+genAbsAnyPathVariant :: forall m. MonadGen m => MonadRec m => m AbsAnyPathVariant
+genAbsAnyPathVariant = Gen.oneOf $ (inj proxyAbsDir <$> genAbsDirPath) :| [ inj proxyAbsFile <$> genAbsFilePath ]
+
+genAnyAnyPathVariant :: forall m. MonadGen m => MonadRec m => m AnyAnyPathVariant
+genAnyAnyPathVariant = Gen.oneOf $
+  (inj proxyRelDir <$> genRelDirPath) :|
+    [ inj proxyAbsDir <$> genAbsDirPath
+    , inj proxyRelFile <$> genRelFilePath
+    , inj proxyAbsFile <$> genAbsFilePath
+    ]
