@@ -71,11 +71,10 @@ windowsPrinter =
 -- | is the only way to ensure the path is safely referring to the intended
 -- | location.
 printPath
-  :: forall a b
-   . IsRelOrAbs a
-  => IsDirOrFile b
+  :: forall dirOrFile
+   . IsDirOrFile dirOrFile
   => Printer
-  -> SandboxedPath a b
+  -> SandboxedPath dirOrFile
   -> String
 printPath r sp =
   let
@@ -90,11 +89,10 @@ printPath r sp =
 -- | the specified printer. This will print a relative path if `b ~ Rel`, which
 -- | depending on how the resulting string is used, may be unsafe.
 unsafePrintPath
-  :: forall a b
-   . IsRelOrAbs a
-  => IsDirOrFile b
+  :: forall dirOrFile
+   . IsDirOrFile dirOrFile
   => Printer
-  -> SandboxedPath a b
+  -> SandboxedPath dirOrFile
   -> String
 unsafePrintPath r sp = printPathRep r (unsandbox sp)
 

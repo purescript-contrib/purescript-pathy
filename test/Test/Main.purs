@@ -2,9 +2,9 @@ module Test.Main where
 
 import Prelude
 
+import Data.Array.NonEmpty (cons')
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (un)
-import Data.Array.NonEmpty (cons')
 import Data.String as Str
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty (fromString) as NES
@@ -13,13 +13,13 @@ import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Console (info)
 import Effect.Exception (throw)
-import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, alterExtension, currentDir, debugPrintPath, dir, extension, file, in', joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, peel, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, sandboxAny, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
+import Pathy (class IsDirOrFile, class IsRelOrAbs, Abs, Dir, Name(..), Path, Rel, SandboxedPath, alterExtension, currentDir, debugPrintPath, dir, extension, file, in', joinName, parentOf, parseAbsDir, parseAbsFile, parseRelDir, parseRelFile, peel, posixParser, posixPrinter, printPath, relativeTo, rename, rootDir, sandbox, sandboxAny, splitName, unsandbox, windowsPrinter, (<..>), (<.>), (</>))
 import Pathy.Gen as PG
 import Pathy.Name (reflectName)
-import Type.Proxy (Proxy(..))
 import Test.QuickCheck ((===))
 import Test.QuickCheck as QC
 import Test.QuickCheck.Gen as Gen
+import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 test :: forall a. Show a => Eq a => String -> a -> a -> Effect Unit
@@ -335,7 +335,11 @@ main = do
 
   test "sandbox - succeed when relative path goes above sandbox but returns to it"
     (unsandbox <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
-    (Just (parentOf currentDir </> dirBar))
+    (Just (rootDir </> dirBar))
+
+  test "sandbox - succeed when relative path goes above sandbox but returns to it"
+    (unsandbox <$> sandbox (rootDir </> dirBar) (parentOf currentDir </> dirBar))
+    (Just (rootDir </> dirBar))
 
   test "sandbox - succeed when absolute path lies inside sandbox"
     (unsandbox <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
@@ -348,6 +352,16 @@ main = do
   test "sandbox - print absolute path that lies inside sandbox"
     (printPath posixPrinter <$> sandbox (rootDir </> dirBar) (rootDir </> dirBar </> dirFoo))
     (Just "/bar/foo/")
+
+  test "sandbox - Rel path, but should be abosolute?"
+    ( let (relDir :: Maybe (SandboxedPath Dir)) = sandbox rootDir (currentDir </> dirBar)
+      in printPath posixPrinter <$> relDir)
+    (Just "/bar/")
+
+  test "sandbox - Rel path, but should be abosolute?"
+    ( let (relDir :: Maybe (SandboxedPath Dir)) = sandbox (rootDir </> dirBar) (currentDir </> dirBar)
+      in printPath posixPrinter <$> relDir)
+    (Just "/bar/bar/")
 
   test "parseRelFile - image.png"
     (parseRelFile posixParser "image.png")

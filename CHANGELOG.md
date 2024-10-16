@@ -6,6 +6,37 @@ Notable changes to this project are documented in this file. The format is based
 
 Breaking changes:
 
+- `Pathy.Gen`
+  - replaced methods
+    - genAbsAnyPath -> genAbsAnyPathVariant
+    - genRelAnyPath -> genRelAnyPathVariant
+  - added methods
+    - genAnyDirPathVariant
+    - genAnyFilePathVariant
+    - genAnyAnyPathVariant
+- `Pathy.Parser`
+  - replaced methods
+    - parseAnyDir -> parseAnyDirPathVariant
+    - parseAnyFile -> parseAnyFilePathVariant
+    - parseAbsPath -> parseAbsAnyPathVariant
+    - parseRelPath -> parseRelAnyPathVariant
+  - added methods
+    - parseAnyAnyPathVariant
+- `Pathy.Path`
+  - replaced
+    - RelPath -> RelAnyPathVariant
+    - AbsPath -> AbsAnyPathVariant
+    - AnyDir -> AnyDirPathVariant
+    - AnyFile -> AnyFilePathVariant
+  - deleted
+    - `type AnyPath a = Either (Path a Dir) (Path a File)` (no analog, but `AnyPath Rel == RelAnyPathVariant`, `AnyPath Abs == AbsAnyPathVariant`)
+  - added
+    - AnyAnyPathVariant
+    - proxyRelDir
+    - proxyAbsDir
+    - proxyRelFile
+    - proxyAbsFile
+
 New features:
 
 Bugfixes:
@@ -15,6 +46,7 @@ Other improvements:
 ## [v9.0.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v9.0.0) - 2022-04-27
 
 Breaking changes:
+
 - Update project and deps to PureScript v0.15.0 (#50 by @JordanMartinez)
 
 New features:
@@ -22,28 +54,34 @@ New features:
 Bugfixes:
 
 Other improvements:
+
 - Added `purs-tidy` formatter (#49 by @thomashoneyman)
 
 ## [v8.1.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v8.1.0) - 2021-05-06
 
 New features:
+
 - Exported `escape` implemented by @safareli in #33 (#46 by @JordanMartinez)
 
 Other improvements:
+
 - Fixed warnings revealed by v0.14.1 PS release (#46 by @JordanMartinez)
 - Installed missing dependencies used in source code (#46 by @JordanMartinez)
 
 ## [v8.0.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v8.0.0) - 2021-02-26
 
 Breaking changes:
+
 - Added support for PureScript 0.14 and dropped support for all previous versions (#42)
 
 New features:
+
 - Added roles declarations to forbid unsafe coercions (#43)
 
 Bugfixes:
 
 Other improvements:
+
 - Changed default branch to `main` from `master`
 - Updated to comply with Contributors library guidelines by adding new issue and pull request templates, updating documentation, and migrating to Spago for local development and CI (#41)
 
