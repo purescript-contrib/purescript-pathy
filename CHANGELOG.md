@@ -12,6 +12,12 @@ Bugfixes:
 
 Other improvements:
 
+## [v9.0.1](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v9.0.1) - 2026-10-11
+
+Other improvements:
+- Migrate to registry-backed Spago 1.0, preserving published dependency ranges (#55 by @thomashoneyman).
+- Update repository tooling and CI actions. No source code changes.
+
 ## [v9.0.0](https://github.com/purescript-contrib/purescript-pathy/releases/tag/v9.0.0) - 2022-04-27
 
 Breaking changes:
